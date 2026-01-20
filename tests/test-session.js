@@ -2,11 +2,11 @@
 // SIGNAL API TEST SESSION
 // ============================================================================
 
-const signal = require('./index');
-const { step } = require('./rhythm');
-const { freq } = require('./melody');
-const { env } = require('./envelopes');
-const scales = require('./scales');
+const signal = require('../src/index');
+const { step } = require('../src/rhythm');
+const { freq } = require('../src/melody');
+const { env } = require('../src/envelopes');
+const scales = require('../src/scales');
 
 console.log('Signal API Test Session Started');
 console.log('================================\n');

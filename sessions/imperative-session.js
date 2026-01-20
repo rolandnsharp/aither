@@ -4,11 +4,11 @@
 // Shows how to use loops, arrays, and imperative logic to generate signals
 // Run with: node signal/runner.js signal/imperative-session.js
 
-const signal = require('./index');
-const { step } = require('./rhythm');
-const { freq } = require('./melody');
-const { env } = require('./envelopes');
-const scales = require('./scales');
+const signal = require('../src/index');
+const { step } = require('../src/rhythm');
+const { freq } = require('../src/melody');
+const { env } = require('../src/envelopes');
+const scales = require('../src/scales');
 
 // ============================================================================
 // EXAMPLE 1: Generate chord tones with a loop

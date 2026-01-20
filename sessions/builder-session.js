@@ -4,11 +4,11 @@
 // Demonstrates the clean builder syntax
 // Run with: node signal/runner.js signal/builder-session.js
 
-const signal = require('./index');
-const { step } = require('./rhythm');
-const { freq } = require('./melody');
-const { env } = require('./envelopes');
-const scales = require('./scales');
+const signal = require('../src/index');
+const { step } = require('../src/rhythm');
+const { freq } = require('../src/melody');
+const { env } = require('../src/envelopes');
+const scales = require('../src/scales');
 
 // ============================================================================
 // Simple examples

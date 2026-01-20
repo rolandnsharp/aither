@@ -2,7 +2,7 @@
 // TEST NEW BUILDER SYNTAX
 // ============================================================================
 
-const signal = require('./index');
+const signal = require('../src/index');
 
 console.log('Testing new signal builder syntax...\n');
 

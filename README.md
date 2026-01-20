@@ -5,16 +5,22 @@ Minimal, composable audio synthesis for live coding.
 ## Quick Start
 
 ```javascript
-const signal = require('./signal');
+const signal = require('./src/index');
 
 // Create a sine wave - audio starts automatically!
 signal('tone').sin(432).gain(0.2);
 ```
 
+## Installation
+
+```bash
+npm install -g signal
+```
+
 ## Live Coding
 
 ```bash
-node signal/runner.js signal/example-session.js
+signal sessions/example-session.js
 ```
 
 Edit `example-session.js` and save - changes apply immediately!
@@ -23,9 +29,17 @@ Edit `example-session.js` and save - changes apply immediately!
 
 ### Signal Creation
 
+The first parameter is just an **arbitrary name** for tracking the signal (used for hot reload).
+It doesn't determine the sound - that's defined by what you chain after it.
+
 ```javascript
 // Builder style (preferred)
+// 'tone' is just a name - the actual sound is sin(432)
 signal('tone').sin(432).gain(0.2)
+
+// You could call it anything:
+signal('mySound').sin(432).gain(0.2)
+signal('x').sin(432).gain(0.2)
 
 // Custom function - builder style
 signal('custom').fn(t => Math.sin(2 * Math.PI * 432 * t) * 0.2)
@@ -33,8 +47,13 @@ signal('custom').fn(t => Math.sin(2 * Math.PI * 432 * t) * 0.2)
 // Custom function - direct style
 signal('custom', t => Math.sin(2 * Math.PI * 432 * t) * 0.2)
 
-// Unnamed signal (for modulators)
-const lfo = signal.sin(5)
+// Manual sine wave with amplitude modulation (no chainable methods)
+signal('tremolo', t => {
+  const carrier = Math.sin(2 * Math.PI * 440 * t)    // 440 Hz carrier
+  const lfo = Math.sin(2 * Math.PI * 5 * t)          // 5 Hz LFO
+  const modulator = 0.5 + 0.5 * lfo                  // Scale LFO to 0-1
+  return carrier * modulator * 0.2                    // Apply modulation
+})
 
 // Stereo signal
 signal('stereo', {
@@ -47,11 +66,12 @@ signal('stereo', {
 
 ```javascript
 // Builder style (named signal)
-signal('tone').sin(432)
-signal('bass').square(110)
-signal('pad').saw(220)
-signal('lead').tri(880)
-signal('noise').noise()
+// Note: 'bass', 'pad', etc. are just arbitrary names, not presets!
+signal('tone').sin(432)       // Name: 'tone', Sound: sine wave at 432 Hz
+signal('bass').square(110)    // Name: 'bass', Sound: square wave at 110 Hz
+signal('pad').saw(220)        // Name: 'pad', Sound: saw wave at 220 Hz
+signal('lead').tri(880)       // Name: 'lead', Sound: triangle wave at 880 Hz
+signal('noise').noise()       // Name: 'noise', Sound: white noise
 
 // Unnamed style (for modulators, internal use)
 const lfo = signal.sin(5)
@@ -134,7 +154,7 @@ left.stereo(right)
 ### Rhythm
 
 ```javascript
-const { step, euclidean } = require('./signal/rhythm')
+const { step, euclidean } = require('./src/rhythm')
 
 // Beat/phase info
 const { beat, index, phase } = step(t, 120, 16)  // 120 BPM, 16th notes
@@ -147,7 +167,7 @@ const pattern = euclidean(5, 16)  // 5 pulses in 16 steps
 
 ```javascript
 const { freq, mtof, ftom } = require('./signal/melody')
-const scales = require('./signal/scales')
+const scales = require('./src/scales')
 
 // Scale degree to frequency
 freq(432, scales.major, 2)  // => 486 Hz (major third)
@@ -160,7 +180,7 @@ ftom(440) // => 69
 ### Scales
 
 ```javascript
-const scales = require('./signal/scales')
+const scales = require('./src/scales')
 
 scales.major       // [0, 2, 4, 5, 7, 9, 11, 12]
 scales.minor       // [0, 2, 3, 5, 7, 8, 10, 12]
@@ -172,7 +192,7 @@ scales.blues       // [0, 3, 5, 6, 7, 10, 12]
 ### Envelopes
 
 ```javascript
-const { env } = require('./signal/envelopes')
+const { env } = require('./src/envelopes')
 
 env.exp(phase, 5)                           // Exponential decay
 env.ramp(phase, 0, 1)                       // Linear ramp
@@ -186,12 +206,60 @@ Signal API works great with loops, arrays, and imperative logic:
 ### Generate Chord with Loop
 
 ```javascript
+const { freq } = require('./src/melody');
+const scales = require('./src/scales');
+
 const chordDegrees = [0, 4, 7, 11];  // Major 7th
 
 for (let i = 0; i < chordDegrees.length; i++) {
   const f = freq(200, scales.major, chordDegrees[i]);
-  signal(`chord-${i}`, signal.sin(f).gain(0.1));
+  signal(`chord-${i}`).sin(f).gain(0.1);
 }
+```
+
+### Create Multiple Layers with a Loop
+
+```javascript
+// Create 8 detuned oscillators for a rich pad sound
+const baseFreq = 220;
+const detuneAmount = 5;  // Hz
+
+for (let i = 0; i < 8; i++) {
+  const detune = (Math.random() * 2 - 1) * detuneAmount;  // Random detune
+  const freq = baseFreq + detune;
+  signal(`pad-${i}`).sin(freq).gain(0.02);
+}
+```
+
+### Generate Drum Pattern with Nested Loops
+
+```javascript
+const { step } = require('./src/rhythm');
+const { env } = require('./src/envelopes');
+
+// Create multiple kick drums with different patterns
+const patterns = [
+  [1, 0, 0, 0, 1, 0, 0, 0],  // Four on the floor
+  [1, 0, 0, 1, 0, 0, 1, 0],  // Syncopated
+  [1, 0, 1, 0, 1, 0, 1, 0],  // Eighth notes
+];
+
+for (let i = 0; i < patterns.length; i++) {
+  const pattern = patterns[i];
+
+  signal(`kick-${i}`, t => {
+    const { index, phase } = step(t, 120, 8);
+
+    if (!pattern[index % pattern.length]) return 0;
+    if (phase > 0.3) return 0;
+
+    const pitchEnv = 50 + 80 * Math.exp(-15 * phase);
+    return Math.sin(2 * Math.PI * pitchEnv * t) * Math.exp(-8 * phase) * 0.3;
+  }).stop();  // Start stopped, enable manually
+}
+
+// Enable just one pattern
+// patterns[0] is active by default when you call .play()
 ```
 
 ### Build Harmonics
@@ -298,29 +366,24 @@ See `imperative-session.js` for more examples.
 
 ```javascript
 const lfo = signal.sin(3).gain(0.5).offset(0.5)
-signal('tremolo', t => {
-  return signal.sin(432).modulate(lfo).gain(0.2).eval(t)
-})
+signal('tremolo').sin(432).modulate(lfo).gain(0.2)
 ```
 
 ### Distorted Bass
 
 ```javascript
-signal('bass', t => {
-  return signal.sin(110)
-    .fx(sample => Math.tanh(sample * 3))
-    .gain(0.3)
-    .eval(t)
-})
+signal('bass').sin(110)
+  .fx(sample => Math.tanh(sample * 3))
+  .gain(0.3)
 ```
 
 ### Melodic Sequencer
 
 ```javascript
-const { step } = require('./signal/rhythm')
-const { freq } = require('./signal/melody')
-const { env } = require('./signal/envelopes')
-const scales = require('./signal/scales')
+const { step } = require('./src/rhythm')
+const { freq } = require('./src/melody')
+const { env } = require('./src/envelopes')
+const scales = require('./src/scales')
 
 signal('melody', t => {
   const { index, phase } = step(t, 120, 8)  // 8th notes
@@ -337,8 +400,8 @@ signal('melody', t => {
 ### Euclidean Kick
 
 ```javascript
-const { step, euclidean } = require('./signal/rhythm')
-const { env } = require('./signal/envelopes')
+const { step, euclidean } = require('./src/rhythm')
+const { env } = require('./src/envelopes')
 
 signal('kick', t => {
   const { index, phase } = step(t, 120, 16)

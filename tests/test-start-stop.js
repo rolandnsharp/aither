@@ -2,7 +2,7 @@
 // TEST START/STOP FUNCTIONALITY
 // ============================================================================
 
-const signal = require('./index');
+const signal = require('../src/index');
 
 console.log('Testing start/stop functionality...\n');
 

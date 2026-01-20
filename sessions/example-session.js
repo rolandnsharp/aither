@@ -4,11 +4,11 @@
 // Run with: node runner.js example-session.js
 // Edit this file and save to hear changes in real-time!
 
-const signal = require('./index');
-const { step, euclidean } = require('./rhythm');
-const { freq } = require('./melody');
-const { env } = require('./envelopes');
-const scales = require('./scales');
+const signal = require('../src/index');
+const { step, euclidean } = require('../src/rhythm');
+const { freq } = require('../src/melody');
+const { env } = require('../src/envelopes');
+const scales = require('../src/scales');
 
 // ============================================================================
 // SIMPLE EXAMPLES - Uncomment to try

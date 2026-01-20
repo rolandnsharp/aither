@@ -4,7 +4,7 @@
 // SIGNAL LIVE CODING RUNNER
 // ============================================================================
 // Watches a session file and hot-reloads it on changes
-// Usage: node runner.js <session-file.js>
+// Usage: signal <session-file.js>
 
 const fs = require('fs');
 const path = require('path');
@@ -14,7 +14,7 @@ const signal = require('./index');
 const sessionFile = process.argv[2];
 
 if (!sessionFile) {
-  console.error('Usage: node runner.js <session-file.js>');
+  console.error('Usage: signal <session-file.js>');
   process.exit(1);
 }
 

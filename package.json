@@ -1,0 +1,26 @@
+{
+  "name": "signal",
+  "version": "1.0.0",
+  "description": "Minimal, composable audio synthesis for live coding.",
+  "homepage": "https://github.com/rolandnsharp/signal#readme",
+  "bugs": {
+    "url": "https://github.com/rolandnsharp/signal/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rolandnsharp/signal.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "src/index.js",
+  "bin": {
+    "signal": "src/runner.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "speaker": "^0.5.5"
+  }
+}
