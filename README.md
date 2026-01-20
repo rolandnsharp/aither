@@ -426,6 +426,24 @@ signal.list()                   // List all signal names
 signal.stopAudio()              // Stop audio output
 ```
 
+## What Makes Signal Different?
+
+Most JavaScript live coding libraries (like Tidal Cycles, Gibber, Strudel) and tools like Sonic Pi act as frontends that send commands to SuperCollider or other synthesis engines. You're essentially scripting a synthesizer, not programming sound itself.
+
+**Signal is different**: you're writing the mathematical wave function directly. When you write:
+
+```javascript
+signal('tone', t => Math.sin(2 * Math.PI * 432 * t) * 0.2)
+```
+
+You're not calling a synthesizer - you're computing the actual sample values that become the sound wave. You're learning and interacting with the wave function itself, understanding exactly how sound works at the sample level.
+
+This makes Signal ideal for:
+- Learning digital signal processing fundamentals
+- Understanding how synthesis actually works
+- Direct mathematical control over every sample
+- Building your own synthesis techniques from first principles
+
 ## Philosophy
 
 - **Pure functions** - Signals are `Time → Sample` functions
