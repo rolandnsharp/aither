@@ -108,6 +108,44 @@ class Signal {
     });
   }
 
+  delay(delayTime) {
+    const original = this.fn;
+    return new Signal(t => {
+      // Pure functional delay - just look backwards in time
+      if (t < delayTime) return 0;
+      return original(t - delayTime);
+    });
+  }
+
+  feedback(delayTime, feedbackAmount) {
+    const original = this.fn;
+    const cache = new Map();
+
+    // Recursive feedback with memoization
+    const output = t => {
+      // Check cache first (for performance)
+      const key = Math.round(t * SAMPLE_RATE);
+      if (cache.has(key)) return cache.get(key);
+
+      // Base case: before delay starts
+      if (t < delayTime) {
+        const result = original(t);
+        cache.set(key, result);
+        return result;
+      }
+
+      // Recursive case: include delayed feedback
+      const dry = original(t);
+      const wet = output(t - delayTime) * feedbackAmount;
+      const result = dry + wet;
+
+      cache.set(key, result);
+      return result;
+    };
+
+    return new Signal(output);
+  }
+
   stereo(right) {
     return new StereoSignal(this, right);
   }
