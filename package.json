@@ -1,6 +1,6 @@
 {
   "name": "@rolandnsharp/signal",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Minimal, composable audio synthesis for live coding.",
   "homepage": "https://github.com/rolandnsharp/signal#readme",
   "bugs": {
