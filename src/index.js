@@ -16,12 +16,13 @@ let currentTime = 0;
 // ============================================================================
 
 class Signal {
-  constructor(fn) {
+  constructor(fn, registryName = null) {
     this.fn = fn;
     this.isActive = true;  // Auto-start by default
     this.isFading = false;
     this.fadeStartTime = 0;
     this.fadeDuration = 0;
+    this._registryName = registryName;  // Track name for re-registration
   }
 
   // Evaluate signal at time t
@@ -56,65 +57,98 @@ class Signal {
 
   gain(amount) {
     const original = this.fn;
-    return new Signal(t => original(t) * amount);
+    const newSignal = new Signal(t => original(t) * amount, this._registryName);
+    // Update registry if this signal has a name
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
   }
 
   offset(amount) {
     const original = this.fn;
-    return new Signal(t => original(t) + amount);
+    const newSignal = new Signal(t => original(t) + amount, this._registryName);
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
   }
 
   clip(threshold) {
     const original = this.fn;
-    return new Signal(t => {
+    const newSignal = new Signal(t => {
       const sample = original(t);
       return Math.max(-threshold, Math.min(threshold, sample));
-    });
+    }, this._registryName);
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
   }
 
   fold(threshold) {
     const original = this.fn;
-    return new Signal(t => {
+    const newSignal = new Signal(t => {
       let sample = original(t);
       // Wavefolder algorithm
       while (sample > threshold) sample = 2 * threshold - sample;
       while (sample < -threshold) sample = -2 * threshold - sample;
       return sample;
-    });
+    }, this._registryName);
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
   }
 
   modulate(other) {
     const original = this.fn;
-    return new Signal(t => original(t) * other.fn(t));
+    const newSignal = new Signal(t => original(t) * other.fn(t), this._registryName);
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
   }
 
   fx(effectFn) {
     const original = this.fn;
-    return new Signal(t => {
+    const newSignal = new Signal(t => {
       const sample = original(t);
       // Support both (sample) and (sample, t) signatures
       return effectFn.length === 1 ? effectFn(sample) : effectFn(sample, t);
-    });
+    }, this._registryName);
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
   }
 
   mix(...signals) {
     const original = this.fn;
-    return new Signal(t => {
+    const newSignal = new Signal(t => {
       let sum = original(t);
       for (const sig of signals) {
         sum += sig.fn(t);
       }
       return sum;
-    });
+    }, this._registryName);
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
   }
 
   delay(delayTime) {
     const original = this.fn;
-    return new Signal(t => {
+    const newSignal = new Signal(t => {
       // Pure functional delay - just look backwards in time
       if (t < delayTime) return 0;
       return original(t - delayTime);
-    });
+    }, this._registryName);
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
   }
 
   feedback(delayTime, feedbackAmount) {
@@ -143,11 +177,70 @@ class Signal {
       return result;
     };
 
-    return new Signal(output);
+    const newSignal = new Signal(output, this._registryName);
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
+  }
+
+  reverb(roomSize = 0.5, decay = 0.5, mix = 0.3) {
+    const original = this.fn;
+
+    // Reverb delay times based on room size (in seconds)
+    // Using prime number ratios for naturalsounding reflections
+    const baseTimes = [0.0297, 0.0371, 0.0411, 0.0437, 0.0050, 0.0017];
+    const delayTimes = baseTimes.map(t => t * (0.5 + roomSize * 1.5));
+
+    // Create caches for each delay line
+    const caches = delayTimes.map(() => new Map());
+
+    // Create recursive comb filters (delay + feedback)
+    const combFilters = delayTimes.map((delayTime, idx) => {
+      const cache = caches[idx];
+      const feedback = decay * 0.7; // Scale decay for stability
+
+      return t => {
+        const key = Math.round(t * SAMPLE_RATE);
+        if (cache.has(key)) return cache.get(key);
+
+        if (t < delayTime) {
+          const result = original(t);
+          cache.set(key, result);
+          return result;
+        }
+
+        const input = original(t);
+        const delayed = combFilters[idx](t - delayTime) * feedback;
+        const result = input + delayed;
+        cache.set(key, result);
+        return result;
+      };
+    });
+
+    // Mix all comb filters together
+    const newSignal = new Signal(t => {
+      const dry = original(t);
+      let wet = 0;
+      for (const filter of combFilters) {
+        wet += filter(t);
+      }
+      wet = wet / combFilters.length; // Average the filters
+      return dry * (1 - mix) + wet * mix;
+    }, this._registryName);
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
   }
 
   stereo(right) {
-    return new StereoSignal(this, right);
+    const stereoSig = new StereoSignal(this, right, this._registryName);
+    // If this signal was registered with a name, update the registry with stereo version
+    if (this._registryName) {
+      activeSignals.set(this._registryName, stereoSig);
+    }
+    return stereoSig;
   }
 }
 
@@ -169,7 +262,7 @@ class SignalBuilder {
 
   // Helper generators
   sin(freq) {
-    const sig = new Signal(t => Math.sin(2 * Math.PI * freq * t));
+    const sig = new Signal(t => Math.sin(2 * Math.PI * freq * t), this.name);
     activeSignals.set(this.name, sig);
     return sig;
   }
@@ -178,7 +271,7 @@ class SignalBuilder {
     const sig = new Signal(t => {
       const phase = (freq * t) % 1;
       return phase < 0.5 ? 1 : -1;
-    });
+    }, this.name);
     activeSignals.set(this.name, sig);
     return sig;
   }
@@ -187,7 +280,7 @@ class SignalBuilder {
     const sig = new Signal(t => {
       const phase = (freq * t) % 1;
       return 2 * phase - 1;
-    });
+    }, this.name);
     activeSignals.set(this.name, sig);
     return sig;
   }
@@ -196,13 +289,13 @@ class SignalBuilder {
     const sig = new Signal(t => {
       const phase = (freq * t) % 1;
       return 2 * Math.abs(2 * phase - 1) - 1;
-    });
+    }, this.name);
     activeSignals.set(this.name, sig);
     return sig;
   }
 
   noise() {
-    const sig = new Signal(() => Math.random() * 2 - 1);
+    const sig = new Signal(() => Math.random() * 2 - 1, this.name);
     activeSignals.set(this.name, sig);
     return sig;
   }
@@ -213,7 +306,7 @@ class SignalBuilder {
 // ============================================================================
 
 class StereoSignal {
-  constructor(left, right) {
+  constructor(left, right, registryName = null) {
     this.left = left;
     this.right = right;
     this.isStereo = true;
@@ -221,6 +314,7 @@ class StereoSignal {
     this.isFading = false;
     this.fadeStartTime = 0;
     this.fadeDuration = 0;
+    this._registryName = registryName;  // Track name for re-registration
   }
 
   eval(t) {
@@ -256,21 +350,31 @@ class StereoSignal {
   // ============================================================================
 
   gain(amount) {
-    return new StereoSignal(
+    const newSignal = new StereoSignal(
       new Signal(t => this.left.fn(t) * amount),
-      new Signal(t => this.right.fn(t) * amount)
+      new Signal(t => this.right.fn(t) * amount),
+      this._registryName
     );
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
   }
 
   offset(amount) {
-    return new StereoSignal(
+    const newSignal = new StereoSignal(
       new Signal(t => this.left.fn(t) + amount),
-      new Signal(t => this.right.fn(t) + amount)
+      new Signal(t => this.right.fn(t) + amount),
+      this._registryName
     );
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
   }
 
   clip(threshold) {
-    return new StereoSignal(
+    const newSignal = new StereoSignal(
       new Signal(t => {
         const sample = this.left.fn(t);
         return Math.max(-threshold, Math.min(threshold, sample));
@@ -278,12 +382,17 @@ class StereoSignal {
       new Signal(t => {
         const sample = this.right.fn(t);
         return Math.max(-threshold, Math.min(threshold, sample));
-      })
+      }),
+      this._registryName
     );
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
   }
 
   fold(threshold) {
-    return new StereoSignal(
+    const newSignal = new StereoSignal(
       new Signal(t => {
         let sample = this.left.fn(t);
         while (sample > threshold) sample = 2 * threshold - sample;
@@ -295,12 +404,17 @@ class StereoSignal {
         while (sample > threshold) sample = 2 * threshold - sample;
         while (sample < -threshold) sample = -2 * threshold - sample;
         return sample;
-      })
+      }),
+      this._registryName
     );
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
   }
 
   fx(effectFn) {
-    return new StereoSignal(
+    const newSignal = new StereoSignal(
       new Signal(t => {
         const sample = this.left.fn(t);
         return effectFn.length === 1 ? effectFn(sample) : effectFn(sample, t);
@@ -308,12 +422,17 @@ class StereoSignal {
       new Signal(t => {
         const sample = this.right.fn(t);
         return effectFn.length === 1 ? effectFn(sample) : effectFn(sample, t);
-      })
+      }),
+      this._registryName
     );
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
   }
 
   mix(...signals) {
-    return new StereoSignal(
+    const newSignal = new StereoSignal(
       new Signal(t => {
         let sum = this.left.fn(t);
         for (const sig of signals) {
@@ -335,12 +454,17 @@ class StereoSignal {
           }
         }
         return sum;
-      })
+      }),
+      this._registryName
     );
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
   }
 
   delay(delayTime) {
-    return new StereoSignal(
+    const newSignal = new StereoSignal(
       new Signal(t => {
         if (t < delayTime) return 0;
         return this.left.fn(t - delayTime);
@@ -348,8 +472,13 @@ class StereoSignal {
       new Signal(t => {
         if (t < delayTime) return 0;
         return this.right.fn(t - delayTime);
-      })
+      }),
+      this._registryName
     );
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
   }
 
   feedback(delayTime, feedbackAmount) {
@@ -390,7 +519,95 @@ class StereoSignal {
       return result;
     };
 
-    return new StereoSignal(new Signal(leftOutput), new Signal(rightOutput));
+    const newSignal = new StereoSignal(new Signal(leftOutput), new Signal(rightOutput), this._registryName);
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
+  }
+
+  reverb(roomSize = 0.5, decay = 0.5, mix = 0.3) {
+    // Reverb delay times (in seconds)
+    const baseTimes = [0.0297, 0.0371, 0.0411, 0.0437, 0.0050, 0.0017];
+    const delayTimes = baseTimes.map(t => t * (0.5 + roomSize * 1.5));
+
+    // Create separate caches for left and right channels
+    const leftCaches = delayTimes.map(() => new Map());
+    const rightCaches = delayTimes.map(() => new Map());
+
+    // Create comb filters for left channel
+    const leftFilters = delayTimes.map((delayTime, idx) => {
+      const cache = leftCaches[idx];
+      const feedback = decay * 0.7;
+
+      return t => {
+        const key = Math.round(t * SAMPLE_RATE);
+        if (cache.has(key)) return cache.get(key);
+
+        if (t < delayTime) {
+          const result = this.left.fn(t);
+          cache.set(key, result);
+          return result;
+        }
+
+        const input = this.left.fn(t);
+        const delayed = leftFilters[idx](t - delayTime) * feedback;
+        const result = input + delayed;
+        cache.set(key, result);
+        return result;
+      };
+    });
+
+    // Create comb filters for right channel (slightly different times for stereo width)
+    const rightFilters = delayTimes.map((delayTime, idx) => {
+      const cache = rightCaches[idx];
+      const feedback = decay * 0.7;
+      // Slightly offset delay times for stereo effect
+      const offsetTime = delayTime * 1.03;
+
+      return t => {
+        const key = Math.round(t * SAMPLE_RATE);
+        if (cache.has(key)) return cache.get(key);
+
+        if (t < offsetTime) {
+          const result = this.right.fn(t);
+          cache.set(key, result);
+          return result;
+        }
+
+        const input = this.right.fn(t);
+        const delayed = rightFilters[idx](t - offsetTime) * feedback;
+        const result = input + delayed;
+        cache.set(key, result);
+        return result;
+      };
+    });
+
+    const newSignal = new StereoSignal(
+      new Signal(t => {
+        const dry = this.left.fn(t);
+        let wet = 0;
+        for (const filter of leftFilters) {
+          wet += filter(t);
+        }
+        wet = wet / leftFilters.length;
+        return dry * (1 - mix) + wet * mix;
+      }),
+      new Signal(t => {
+        const dry = this.right.fn(t);
+        let wet = 0;
+        for (const filter of rightFilters) {
+          wet += filter(t);
+        }
+        wet = wet / rightFilters.length;
+        return dry * (1 - mix) + wet * mix;
+      }),
+      this._registryName
+    );
+    if (this._registryName) {
+      activeSignals.set(this._registryName, newSignal);
+    }
+    return newSignal;
   }
 }
 
