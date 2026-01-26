@@ -230,6 +230,147 @@ wave('evolving', t => {
 
 ---
 
+### Dynamics & Envelope Helpers
+
+#### `smooth(target, amount, slot)`
+
+Stateful parameter smoother - prevents pops and clicks when values change.
+
+**Parameters:**
+- `target` - The value to approach
+- `amount` - Smoothing factor: 0.0 (instant) to 0.999 (very slow)
+- `slot` - Memory index for smoother state (default: 50)
+
+**Returns:** Smoothly changing value approaching target
+
+**Example:**
+```javascript
+wave('smooth-vol', t => {
+  const tone = liveSin(440, 0);
+  const volume = smooth(0.5, 0.999, 40);  // Edit 0.5 → 0.8 (no pop!)
+  return mul(tone, volume);
+});
+```
+
+**Technical Details:**
+- Uses exponential smoothing: `current = (last * amount) + (target * (1 - amount))`
+- Higher `amount` = slower response (more smoothing)
+- Typical values: 0.99 (fast), 0.999 (medium), 0.9999 (slow)
+
+**Use Cases:**
+- Volume changes without clicks
+- Parameter automation
+- Envelope-like fades
+
+---
+
+#### `smoothGain(amplitude, signal, slot)`
+
+Amplitude control with automatic smoothing (combines `gain` and `smooth`).
+
+**Example:**
+```javascript
+wave('auto-smooth', t => smoothGain(0.5, liveSin(440, 0), 40));
+```
+
+---
+
+### Rhythm & Timing Helpers
+
+#### `beat(bpm, slot)`
+
+Quantized rhythmic clock - creates trigger pulses for patterns.
+
+**Parameters:**
+- `bpm` - Beats per minute (120 = standard tempo)
+- `slot` - Memory index for clock phase (default: 60)
+
+**Returns:** 1 during first 10% of beat cycle, 0 otherwise
+
+**Example:**
+```javascript
+wave('kick', t => {
+  const kickDrum = liveSin(50, 0);
+  const trigger = beat(120, 60);  // 120 BPM
+  return mul(kickDrum, trigger, 0.7);
+});
+```
+
+**Use Cases:**
+- Kick drums and percussion triggers
+- Rhythmic gating
+- Sequencer-free pattern creation
+
+**Live Surgery:**
+```javascript
+// Change tempo mid-performance
+beat(120, 60)  // Save
+beat(140, 60)  // Save - tempo increases smoothly
+```
+
+---
+
+### Filter Helpers
+
+#### `lp(input, cutoff, slot)`
+
+Stateful one-pole lowpass filter - smooths high frequencies.
+
+**Parameters:**
+- `input` - Signal to filter
+- `cutoff` - Filter coefficient: 0.0 (no filtering) to 1.0 (maximum)
+- `slot` - Memory index for filter history (default: 70)
+
+**Returns:** Low-pass filtered signal
+
+**Example:**
+```javascript
+wave('filtered', t => {
+  const saw = liveSaw(110, 0);
+  return lp(saw, 0.05, 70);  // Typical cutoff: 0.01 - 0.2
+});
+```
+
+**Technical Details:**
+- One-pole IIR filter: `y[n] = y[n-1] + cutoff * (x[n] - y[n-1])`
+- Lower cutoff = darker sound (more filtering)
+- Filter state survives code updates (no transients)
+
+**Use Cases:**
+- Removing harshness from sawtooth/square waves
+- Creating pad sounds
+- Resonance-free smoothing
+
+**Live Surgery:**
+```javascript
+// Morph filter cutoff while playing
+lp(saw, 0.01, 70)  // Very dark
+lp(saw, 0.1, 70)   // Medium
+lp(saw, 0.5, 70)   // Bright
+```
+
+---
+
+#### `hp(input, cutoff, slot)`
+
+Stateful one-pole highpass filter - removes low frequencies.
+
+**Parameters:**
+- `input` - Signal to filter
+- `cutoff` - Filter coefficient (same as lowpass)
+- `slot` - Memory index for filter history (default: 71)
+
+**Returns:** High-pass filtered signal
+
+**Example:**
+```javascript
+wave('thin', t => hp(liveSin(110, 0), 0.1, 71));  // Remove bass
+```
+
+**Implementation:** `highpass = input - lowpass(input)`
+
+---
+
 ### Utility Functions
 
 #### `gain(amplitude, signal)`
@@ -253,7 +394,7 @@ wave('processed', t =>
   pipe(
     liveSin(440, 0),
     sig => gain(0.5, sig),
-    sig => someFilter(sig)
+    sig => lp(sig, 0.1, 70)
   )
 );
 ```
@@ -283,12 +424,28 @@ wave('bad', t => {
 });
 ```
 
-### Recommended Slot Organization
+### Recommended Slot Organization (128 slots: 0-127)
 
-- **0-29**: Main oscillators (tones, carriers, basses)
-- **30-49**: LFOs and modulators
-- **50-62**: Time accumulators (liveTime)
-- **63**: Reserved for default liveTime
+- **0-19**: Main oscillators (carriers, basses, leads, chords)
+- **20-39**: LFOs and modulators (vibrato, tremolo, FM)
+- **40-59**: Smoothers and envelope states (`smooth()`, `smoothGain()`)
+- **60-69**: Rhythm clocks (`beat()` functions)
+- **70-89**: Filter history (`lp()`, `hp()` internal state)
+- **90-109**: Time accumulators (`liveTime()` for long-form pieces)
+- **110-127**: Reserved for user experimentation
+
+**Complete Track Example:**
+```javascript
+wave('track', t => {
+  // Slot organization for a full mix
+  const kick = mul(liveSin(50, 0), beat(120, 60), 0.8);     // Osc:0, Beat:60
+  const bass = mul(liveSin(110, 1), smooth(0.3, 0.999, 40), 0.6); // Osc:1, Smooth:40
+  const lead = lp(liveSaw(440, 2), smooth(0.1, 0.99, 41), 70);   // Osc:2, Smooth:41, Filter:70
+  const pad = lp(liveSaw(220, 3), 0.05, 71);                // Osc:3, Filter:71
+
+  return gain(0.5, add(kick, bass, lead, gain(0.2, pad)));
+});
+```
 
 ---
 
@@ -474,7 +631,70 @@ const phase = mul(freq, mul(2, Math.PI));  // Nested binary ops
 
 ---
 
+## Comparison Operators
+
+Genish provides comparison operators for conditional logic:
+
+- `lt(a, b)` - Less than (returns 1 if a < b, else 0)
+- `gt(a, b)` - Greater than (returns 1 if a > b, else 0)
+- `lte(a, b)` - Less than or equal
+- `gte(a, b)` - Greater than or equal
+
+**Example: Conditional Gate**
+```javascript
+wave('conditional', t => {
+  const phase = livePhasor(2, 0);
+  const gate = lt(phase, 0.3);  // Only on during first 30% of cycle
+  return mul(liveSin(440, 1), gate, 0.5);
+});
+```
+
+---
+
 ## Advanced Patterns
+
+### Complete Performance Track
+
+```javascript
+wave('performance', t => {
+  // === RHYTHM SECTION ===
+  const kickTrigger = beat(120, 60);
+  const kick = mul(liveSin(50, 0), kickTrigger, 0.9);
+
+  const snareTrigger = beat(60, 61);  // Half-time snare
+  const snare = mul(noise(), snareTrigger, 0.3);
+
+  // === BASS LINE ===
+  const bassNote = liveSin(55, 1);
+  const bassEnv = smooth(0.4, 0.999, 40);
+  const bass = lp(mul(bassNote, bassEnv), 0.08, 70);
+
+  // === LEAD MELODY ===
+  const leadFreq = add(440, mul(liveSin(0.5, 2), 50));  // Vibrato
+  const lead = lp(liveSaw(leadFreq, 3), smooth(0.15, 0.99, 41), 71);
+
+  // === PAD ===
+  const pad = lp(
+    add(
+      liveSin(220, 4),
+      liveSin(277, 5),  // Major third
+      liveSin(330, 6)   // Perfect fifth
+    ),
+    0.03,
+    72
+  );
+
+  return gain(0.6, add(kick, snare, bass, gain(0.7, lead), gain(0.2, pad)));
+});
+```
+
+**Live Surgery on this track:**
+- Change BPM: `beat(120, 60)` → `beat(140, 60)`
+- Adjust bass cutoff: `lp(..., 0.08, 70)` → `lp(..., 0.15, 70)`
+- Modify lead vibrato depth: `mul(..., 50)` → `mul(..., 100)`
+- All changes are instant and click-free!
+
+---
 
 ### Cross-Modulation with Phase Lock
 

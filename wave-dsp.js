@@ -5,6 +5,31 @@
 // Note: In the worklet, genish is available as globalThis.genish
 // In the browser, it's window.genish
 
+// ============================================================================
+// MEMORY SLOT ALLOCATION STRATEGY
+// ============================================================================
+// The engine has 128 memory slots (0-127) for persistent state.
+// Organize your slots to prevent conflicts:
+//
+// Recommended Layout:
+// 0-19:   Main oscillator phases (carriers, basses, leads)
+// 20-39:  LFO and modulator phases
+// 40-59:  Smoother/envelope states (smooth(), smoothGain())
+// 60-69:  Rhythm clocks (beat())
+// 70-89:  Filter history (lp(), hp())
+// 90-109: Time accumulators (liveTime())
+// 110-127: Reserved for user experimentation
+//
+// Example:
+//   wave('track', t => {
+//     const carrier = liveSin(440, 0);        // Slot 0: main oscillator
+//     const lfo = liveSin(5, 20);             // Slot 20: modulator
+//     const envelope = smooth(0.5, 0.99, 40); // Slot 40: envelope
+//     const kick = beat(120, 60);             // Slot 60: rhythm
+//     return lp(mul(carrier, envelope), 0.1, 70);  // Slot 70: filter
+//   });
+// ============================================================================
+
 // Alias Math.PI for clean syntax in signal.js (compiled as a constant)
 const PI = Math.PI;
 
@@ -88,11 +113,67 @@ const liveTime = (resetSeconds, idx = 63) => {
 };
 
 // ============================================================================
+// DYNAMICS & ENVELOPE HELPERS
+// ============================================================================
+
+// smooth: Stateful parameter smoother (prevents pops when values change)
+// Exponentially approaches target value over time
+// amount: 0.0 (instant) to 0.999 (very slow) - higher = smoother
+const smooth = (target, amount = 0.99, slot = 50) => {
+  const lastVal = g.peek(g.gen.memory, slot);
+  // Formula: current = (last * amount) + (target * (1 - amount))
+  const nextVal = g.add(
+    g.mul(lastVal, amount),
+    g.mul(target, g.sub(1, amount))
+  );
+  return g.sub(g.poke(g.gen.memory, nextVal, slot), 0);
+};
+
+// ============================================================================
+// RHYTHM & TIMING HELPERS
+// ============================================================================
+
+// beat: Quantized rhythmic clock (returns 1 on beat, 0 otherwise)
+// Creates a trigger pulse for rhythmic patterns
+const beat = (bpm = 120, slot = 60) => {
+  const bps = g.div(bpm, 60);  // Beats per second
+  const phase = livePhasor(bps, slot);
+  // Return 1 if phase is in first 10% of cycle (short pulse)
+  return g.lt(phase, 0.1);
+};
+
+// ============================================================================
+// FILTER HELPERS
+// ============================================================================
+
+// lp: Stateful one-pole lowpass filter
+// Smooths high frequencies while preserving state across code updates
+// cutoff: 0.0 (no filtering) to 1.0 (maximum filtering)
+const lp = (input, cutoff = 0.1, slot = 70) => {
+  const history = g.peek(g.gen.memory, slot);
+  // One-pole formula: y[n] = y[n-1] + cutoff * (x[n] - y[n-1])
+  const out = g.add(history, g.mul(cutoff, g.sub(input, history)));
+  return g.sub(g.poke(g.gen.memory, out, slot), 0);
+};
+
+// hp: Stateful one-pole highpass filter
+// Removes low frequencies (opposite of lowpass)
+const hp = (input, cutoff = 0.1, slot = 71) => {
+  const lowpassed = lp(input, cutoff, slot);
+  return g.sub(input, lowpassed);  // highpass = input - lowpass
+};
+
+// ============================================================================
 // FUNCTIONAL COMPOSITION HELPERS
 // ============================================================================
 
 // gain: Amplitude control
 const gain = (amt, sig) => g.mul(sig, amt);
+
+// smoothGain: Amplitude control with automatic smoothing (prevents clicks)
+const smoothGain = (amt, sig, slot = 51) => {
+  return g.mul(sig, smooth(amt, 0.999, slot));
+};
 
 // pipe: Unix-style function composition
 // Usage: pipe(liveSin(440, 0), s => gain(0.5, s), s => someFilter(s))
@@ -146,7 +227,11 @@ globalScope.counter = g.counter;
 globalScope.data = g.data;
 globalScope.peek = g.peek;
 globalScope.poke = g.poke;
-globalScope.mod = g.mod;  // For wrapping time to prevent precision loss
+globalScope.mod = g.mod;
+globalScope.lt = g.lt;  // Less than (for comparisons)
+globalScope.gt = g.gt;  // Greater than (for comparisons)
+globalScope.gte = g.gte;  // Greater than or equal
+globalScope.lte = g.lte;  // Less than or equal
 
 // Expose constants and helper functions
 globalScope.PI = PI;
@@ -161,6 +246,17 @@ globalScope.liveCos = liveCos;
 globalScope.liveSaw = liveSaw;
 globalScope.liveSquare = liveSquare;
 globalScope.liveTime = liveTime;
+
+// Dynamics & envelopes
+globalScope.smooth = smooth;
+globalScope.smoothGain = smoothGain;
+
+// Rhythm & timing
+globalScope.beat = beat;
+
+// Filters (stateful, survive code updates)
+globalScope.lp = lp;
+globalScope.hp = hp;
 
 // Functional composition
 globalScope.gain = gain;

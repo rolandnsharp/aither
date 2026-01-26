@@ -38,17 +38,63 @@ wave('tone', t => liveSin(220, 0));
 
 // Example 6: Multiple voices (chord)
 // wave('chord', t => {
-//   const root = liveSin(220, 20);
-//   const third = liveSin(277, 21);  // Major third
-//   const fifth = liveSin(330, 22);  // Perfect fifth
+//   const root = liveSin(220, 0);
+//   const third = liveSin(277, 1);  // Major third
+//   const fifth = liveSin(330, 2);  // Perfect fifth
 //   return gain(0.2, add(root, third, fifth));
 // });
 
+// Example 7: Smooth parameter changes (no pops when editing gain)
+// wave('smooth', t => {
+//   const tone = liveSin(440, 0);
+//   const volume = smooth(0.5, 0.999, 40);  // Try changing 0.5 to 0.1
+//   return mul(tone, volume);
+// });
+
+// Example 8: Rhythmic kick with beat clock
+// wave('kick', t => {
+//   const kick = liveSin(50, 0);         // 50Hz kick drum
+//   const trigger = beat(120, 60);       // 120 BPM trigger
+//   return mul(kick, trigger, 0.7);
+// });
+
+// Example 9: Filtered pad with stateful lowpass
+// wave('pad', t => {
+//   const saw = liveSaw(110, 0);         // Rich sawtooth
+//   const filtered = lp(saw, 0.05, 70);  // Try changing cutoff (0.01 to 0.5)
+//   return gain(0.4, filtered);
+// });
+
+// Example 10: Complete track with all elements
+// wave('track', t => {
+//   // Kick drum on the beat
+//   const kick = mul(liveSin(50, 0), beat(120, 60), 0.8);
+//
+//   // Bass line with smooth volume
+//   const bassOsc = liveSin(110, 1);
+//   const bassVol = smooth(0.3, 0.999, 40);
+//   const bass = mul(bassOsc, bassVol);
+//
+//   // Filtered pad
+//   const pad = lp(liveSaw(220, 2), 0.1, 70);
+//
+//   return gain(0.5, add(kick, bass, gain(0.2, pad)));
+// });
+
+// ============================================================================
+// MEMORY SLOT ORGANIZATION:
+// 0-19:   Main oscillators (carriers, basses)
+// 20-39:  LFOs and modulators
+// 40-59:  Smoothers and envelopes
+// 60-69:  Rhythm clocks (beat)
+// 70-89:  Filter history
+// 90-109: Time accumulators
+//
 // ============================================================================
 // HOW TO PERFORM LIVE SURGERY:
 // 1. Pick an example, uncomment it
 // 2. Start the engine: bun run host.ts
-// 3. While it's playing, change a frequency or modulation depth
+// 3. While it's playing, change a frequency, modulation depth, or cutoff
 // 4. Save the file
 // 5. Result: The sound morphs instantly without any click or phase reset
 // ============================================================================
