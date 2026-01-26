@@ -371,6 +371,257 @@ wave('thin', t => hp(liveSin(110, 0), 0.1, 71));  // Remove bass
 
 ---
 
+## Effects Processors
+
+All effects maintain internal state (delay buffers, filter history) in persistent memory. This means:
+- **Echo tails survive code updates** - Change your oscillator and the old echoes continue
+- **Reverb persists** - The "room" stays alive through hot-swaps
+- **No initialization clicks** - Effect buffers maintain continuity
+
+### Time-Based Effects
+
+#### `echo(input, time, feedback)`
+
+Classic feedback delay effect.
+
+**Parameters:**
+- `input` - Signal to delay
+- `time` - Delay time in samples (44100 = 1 second, 11025 = 250ms)
+- `feedback` - 0.0 to 0.99 (amount of repeats)
+
+**Returns:** Delayed signal with repeats
+
+**Example:**
+```javascript
+wave('echo-test', t => {
+  const beep = mul(liveSin(440, 0), beat(2, 60), 0.5);
+  return echo(beep, 11025, 0.6);  // 250ms delay, 60% feedback
+});
+```
+
+**Time Conversions:**
+- 250ms = 11025 samples (at 44.1kHz)
+- 500ms = 22050 samples
+- 1 second = 44100 samples
+
+**Live Surgery:**
+```javascript
+echo(input, 11025, 0.6)  // Quick repeats
+echo(input, 22050, 0.6)  // Slower repeats (no click!)
+echo(input, 22050, 0.8)  // More feedback (longer tail)
+```
+
+---
+
+#### `dub(input, time, feedback, darkening)`
+
+Dub-style delay with filtering on feedback path (darker, more organic repeats).
+
+**Parameters:**
+- `input` - Signal to delay
+- `time` - Delay time in samples
+- `feedback` - 0.0 to 0.99
+- `darkening` - Lowpass cutoff on feedback (0.01-0.5, lower = darker)
+
+**Returns:** Dub-style delayed signal
+
+**Example:**
+```javascript
+wave('dub', t => {
+  const stab = mul(liveSaw(220, 0), beat(1, 60));
+  return dub(stab, 22050, 0.7, 0.1);  // 500ms, dark repeats
+});
+```
+
+**Sound Character:** Each repeat gets progressively darker and smoother, like tape delay.
+
+---
+
+#### `reverb(input, size, damping)`
+
+Algorithmic reverb using Schroeder architecture (multiple delay lines).
+
+**Parameters:**
+- `input` - Signal to reverberate
+- `size` - 0.0 to 0.99 (room size / decay time)
+- `damping` - 0.0 to 1.0 (high frequency absorption, lower = darker)
+
+**Returns:** Reverberated signal (50/50 dry/wet mix)
+
+**Example:**
+```javascript
+wave('space', t => {
+  const pulse = mul(liveSin(440, 0), beat(2, 60), 0.4);
+  return reverb(pulse, 0.7, 0.2);  // Large room, bright
+});
+```
+
+**Use Cases:**
+- Ambient pads
+- Adding space to percussive sounds
+- Creating depth in mixes
+
+---
+
+#### `pingPong(input, time, feedback)`
+
+Stereo ping-pong delay (requires stereo output support - TODO).
+
+**Parameters:**
+- `input` - Mono signal
+- `time` - Delay time per side
+- `feedback` - 0.0 to 0.99
+
+**Returns:** `[left, right]` array
+
+**Example:**
+```javascript
+wave('ping', t => {
+  const hit = mul(liveSin(880, 0), beat(4, 60));
+  return pingPong(hit, 5512, 0.6);  // 125ms ping-pong
+});
+```
+
+---
+
+### Distortion & Tone-Shaping
+
+#### `crush(input, bits)`
+
+Bitcrusher - reduces bit depth for lo-fi/digital distortion.
+
+**Parameters:**
+- `input` - Signal to crush
+- `bits` - 1 to 16 (lower = more degraded, 16 = transparent)
+
+**Returns:** Bitcrushed signal
+
+**Example:**
+```javascript
+wave('lofi', t => crush(liveSin(330, 0), 6));  // Crunchy 6-bit
+```
+
+**Typical Values:**
+- 4 bits = Extreme lo-fi, aliasing artifacts
+- 8 bits = Classic video game sound
+- 12 bits = Subtle grit
+
+---
+
+#### `saturate(input, drive)`
+
+Soft clipping / tape saturation using tanh() curve.
+
+**Parameters:**
+- `input` - Signal to saturate
+- `drive` - 1.0 (clean) to 10.0 (heavy distortion)
+
+**Returns:** Saturated signal
+
+**Example:**
+```javascript
+wave('warm', t => saturate(liveSin(110, 0), 3.0));  // Warm bass
+```
+
+**Sound Character:** Smooth, musical distortion that adds warmth and harmonics.
+
+---
+
+#### `fold(input, amount)`
+
+Wavefolding distortion (Buchla-style) - reflects waveform at threshold.
+
+**Parameters:**
+- `input` - Signal to fold
+- `amount` - 1.0 (clean) to 4.0 (extreme folding)
+
+**Returns:** Folded signal
+
+**Example:**
+```javascript
+wave('folded', t => fold(liveSin(220, 0), 2.5));
+```
+
+**Sound Character:** Creates complex harmonic content, bright and metallic.
+
+---
+
+### Resonant Effects
+
+#### `comb(input, time, feedback)`
+
+Comb filter - creates metallic resonance at specific frequency.
+
+**Parameters:**
+- `input` - Signal to filter (works best with noise/impulses)
+- `time` - Delay time in samples (determines pitch: 441 samples ≈ 100Hz)
+- `feedback` - 0.0 to 0.99 (resonance amount)
+
+**Returns:** Resonant filtered signal
+
+**Example:**
+```javascript
+wave('metallic', t => {
+  const burst = mul(noise(), beat(4, 60), 0.3);
+  return comb(burst, 441, 0.8);  // 100Hz resonance
+});
+```
+
+**Frequency Calculation:** `freq = sampleRate / time` (44100 / 441 = 100Hz)
+
+---
+
+#### `karplus(impulse, freq, damping)`
+
+Karplus-Strong string synthesis - simulates plucked string using feedback delay.
+
+**Parameters:**
+- `impulse` - Excitation signal (typically noise burst or pulse)
+- `freq` - Fundamental frequency of string
+- `damping` - 0.0 to 1.0 (higher = longer sustain, 0.995 is typical)
+
+**Returns:** Plucked string sound
+
+**Example:**
+```javascript
+wave('pluck', t => {
+  const trigger = mul(noise(), beat(2, 60), 0.5);  // Pluck trigger
+  return karplus(trigger, 220, 0.995);  // A3 string
+});
+```
+
+**Sound Character:** Realistic plucked string with natural decay and harmonics.
+
+---
+
+#### `feedback(input, processFn, amount, time)`
+
+Generic feedback loop with custom processing function.
+
+**Parameters:**
+- `input` - Source signal
+- `processFn` - Function to apply in feedback path (e.g., `sig => saturate(sig, 2.0)`)
+- `amount` - 0.0 to 0.99 (feedback amount)
+- `time` - Delay time before feedback (min 1 sample)
+
+**Returns:** Signal with processed feedback
+
+**Example:**
+```javascript
+wave('chaos', t => {
+  const source = liveSin(110, 0);
+  // Feedback with saturation in the loop
+  return feedback(source, sig => saturate(sig, 2.0), 0.3, 100);
+});
+```
+
+**Use Cases:**
+- Creating self-modulating feedback systems
+- Complex distortion circuits
+- Chaotic/unstable sounds
+
+---
+
 ### Utility Functions
 
 #### `gain(amplitude, signal)`

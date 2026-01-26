@@ -65,20 +65,78 @@ wave('tone', t => liveSin(220, 0));
 //   return gain(0.4, filtered);
 // });
 
-// Example 10: Complete track with all elements
+// Example 10: Echo effect (classic delay)
+// wave('echo-test', t => {
+//   const tone = mul(liveSin(440, 0), beat(2, 60), 0.5);  // Beeping tone
+//   return echo(tone, 11025, 0.6);  // 250ms delay, 60% feedback
+// });
+
+// Example 11: Dub-style delay with filtering
+// wave('dub', t => {
+//   const stab = mul(liveSaw(220, 0), beat(1, 60));
+//   return dub(stab, 22050, 0.7, 0.1);  // Dark, organic repeats
+// });
+
+// Example 12: Bitcrusher lo-fi effect
+// wave('lofi', t => {
+//   const clean = liveSin(330, 0);
+//   return crush(clean, 6);  // Try 4, 8, 12 bits
+// });
+
+// Example 13: Tape saturation / distortion
+// wave('saturated', t => {
+//   const clean = liveSin(110, 0);
+//   return saturate(clean, 3.0);  // Try 1.0-10.0
+// });
+
+// Example 14: Wavefolding (Buchla-style)
+// wave('folded', t => {
+//   const clean = liveSin(220, 0);
+//   return fold(clean, 2.5);  // Try 1.0-4.0
+// });
+
+// Example 15: Reverb (spacious ambience)
+// wave('space', t => {
+//   const dry = mul(liveSin(440, 0), beat(2, 60), 0.4);
+//   return reverb(dry, 0.7, 0.2);  // size, damping
+// });
+
+// Example 16: Comb filter (metallic resonance)
+// wave('metallic', t => {
+//   const pulse = mul(noise(), beat(4, 60), 0.3);  // Noise burst
+//   return comb(pulse, 441, 0.8);  // 100Hz resonance
+// });
+
+// Example 17: Karplus-Strong plucked string
+// wave('pluck', t => {
+//   const pluck = mul(noise(), beat(2, 60), 0.5);  // Trigger
+//   return karplus(pluck, 220, 0.995);  // A3 string
+// });
+
+// Example 18: Feedback loop with processing
+// wave('feedback-chaos', t => {
+//   const source = liveSin(110, 0);
+//   return feedback(source, sig => saturate(sig, 2.0), 0.3, 100);
+// });
+
+// Example 19: Complete track with effects
 // wave('track', t => {
 //   // Kick drum on the beat
 //   const kick = mul(liveSin(50, 0), beat(120, 60), 0.8);
 //
-//   // Bass line with smooth volume
+//   // Bass line with dub delay
 //   const bassOsc = liveSin(110, 1);
 //   const bassVol = smooth(0.3, 0.999, 40);
-//   const bass = mul(bassOsc, bassVol);
+//   const bass = dub(mul(bassOsc, bassVol), 22050, 0.5, 0.08);
 //
-//   // Filtered pad
-//   const pad = lp(liveSaw(220, 2), 0.1, 70);
+//   // Saturated lead with echo
+//   const lead = saturate(liveSaw(440, 2), 2.0);
+//   const leadEcho = echo(lead, 11025, 0.4);
 //
-//   return gain(0.5, add(kick, bass, gain(0.2, pad)));
+//   // Reverb pad
+//   const pad = reverb(lp(liveSaw(220, 3), 0.05, 70), 0.6, 0.3);
+//
+//   return gain(0.6, add(kick, bass, gain(0.5, leadEcho), gain(0.2, pad)));
 // });
 
 // ============================================================================

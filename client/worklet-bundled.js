@@ -6120,6 +6120,114 @@ const hp = (input, cutoff = 0.1, slot = 71) => {
 };
 
 // ============================================================================
+// EFFECTS PROCESSORS (Stateful, survive code updates)
+// ============================================================================
+
+// echo: Feedback delay effect
+// time: Delay time in samples (use: 44100 = 1 second, 11025 = 250ms)
+// feedback: 0.0 to 0.99 (amount of repeats)
+// Example: echo(11025, 0.6) = 250ms delay with 60% feedback
+const echo = (input, time = 11025, feedback = 0.5) => {
+  // genish.delay handles internal buffer management
+  return g.delay(input, time, { feedback: feedback });
+};
+
+// dub: Dub-style delay with filtering on feedback
+// Creates darker, more organic repeats
+const dub = (input, time = 22050, feedback = 0.7, darkening = 0.1) => {
+  const d = g.delay(input, time, { feedback: feedback });
+  // Filter the delayed signal for darker repeats
+  return g.add(input, lp(d, darkening, 80));
+};
+
+// crush: Bitcrusher (lo-fi digital degradation)
+// bits: 1-16 (lower = more degraded, 16 = clean)
+const crush = (input, bits = 8) => {
+  const step = 1 / Math.pow(2, bits);
+  return g.mul(g.floor(g.div(input, step)), step);
+};
+
+// saturate: Soft clipping / tape saturation
+// drive: 1.0 (clean) to 10.0 (heavy distortion)
+const saturate = (input, drive = 2.0) => {
+  const gained = g.mul(input, drive);
+  // tanh provides smooth saturation curve
+  return g.tanh(gained);
+};
+
+// fold: Wavefolding distortion (Buchla-style)
+// amount: 1.0 (clean) to 4.0 (extreme folding)
+const fold = (input, amount = 2.0) => {
+  const scaled = g.mul(input, amount);
+  // Fold by taking sin of the scaled signal
+  return g.sin(g.mul(scaled, Math.PI));
+};
+
+// reverb: Simple algorithmic reverb using multiple delays
+// Creates space using Schroeder reverberator architecture
+const reverb = (input, size = 0.5, damping = 0.3) => {
+  // Multiple delay lines at different lengths create reverb effect
+  const d1 = g.delay(input, 1557, { feedback: size });
+  const d2 = g.delay(input, 1617, { feedback: size });
+  const d3 = g.delay(input, 1491, { feedback: size });
+  const d4 = g.delay(input, 1422, { feedback: size });
+
+  // Mix all delays together
+  const wet = g.mul(g.add(d1, d2, d3, d4), 0.25);
+
+  // Apply damping (lowpass filter on wet signal)
+  const damped = lp(wet, damping, 81);
+
+  // Mix with dry signal (50/50)
+  return g.add(g.mul(input, 0.5), g.mul(damped, 0.5));
+};
+
+// pingPong: Stereo ping-pong delay (requires stereo output)
+// Returns [left, right] array
+const pingPong = (input, time = 11025, feedback = 0.6) => {
+  const left = g.delay(input, time, { feedback: feedback });
+  const right = g.delay(left, time, { feedback: feedback });
+  return [left, right];
+};
+
+// feedback: Generic feedback loop with processing
+// Creates recursive effects by routing output back to input with delay
+// processFn: Function to apply in the feedback path (e.g., filtering, distortion)
+// amount: 0.0-0.99 (feedback amount - higher = more intense)
+// time: Delay time in samples before feedback (min 1 sample to prevent infinite loop)
+const feedback = (input, processFn, amount = 0.5, time = 1) => {
+  // Single-sample delay creates feedback loop
+  const delayed = g.delay(input, time, { feedback: 0 });
+
+  // Apply processing function to feedback path
+  const processed = processFn(delayed);
+
+  // Mix processed feedback with input
+  return g.add(input, g.mul(processed, amount));
+};
+
+// comb: Comb filter using feedback (creates metallic/resonant tones)
+// time: Delay time in samples (determines pitch of resonance)
+// feedback: 0.0-0.99 (higher = longer resonance)
+const comb = (input, time = 441, feedback = 0.7) => {
+  return g.delay(input, time, { feedback: feedback });
+};
+
+// karplus: Karplus-Strong string synthesis (plucked string simulation)
+// freq: Fundamental frequency of string
+// damping: 0.0-1.0 (higher = faster decay)
+// impulse: Initial excitation signal (usually noise burst)
+const karplus = (impulse, freq, damping = 0.995) => {
+  const delayTime = Math.floor(g.gen.samplerate / freq);
+
+  // Feedback loop with averaging filter (simulates string loss)
+  const fb = g.delay(impulse, delayTime, { feedback: damping });
+
+  // Simple averaging lowpass in feedback path
+  return lp(fb, 0.5, 82);
+};
+
+// ============================================================================
 // FUNCTIONAL COMPOSITION HELPERS
 // ============================================================================
 
@@ -6132,7 +6240,7 @@ const smoothGain = (amt, sig, slot = 51) => {
 };
 
 // pipe: Unix-style function composition
-// Usage: pipe(liveSin(440, 0), s => gain(0.5, s), s => someFilter(s))
+// Usage: pipe(liveSin(440, 0), s => gain(0.5, s), s => echo(s, 11025, 0.6))
 const pipe = (...fns) => {
   return fns.reduce((acc, fn) => fn(acc));
 };
@@ -6170,6 +6278,7 @@ globalScope.tan = g.tan;
 globalScope.tanh = g.tanh;
 globalScope.abs = g.abs;
 globalScope.round = g.round;
+globalScope.floor = g.floor;
 globalScope.add = g.add;
 globalScope.sub = g.sub;
 globalScope.mul = g.mul;
@@ -6181,6 +6290,7 @@ globalScope.max = g.max;
 globalScope.accum = g.accum;
 globalScope.counter = g.counter;
 globalScope.data = g.data;
+globalScope.delay = g.delay;
 globalScope.peek = g.peek;
 globalScope.poke = g.poke;
 globalScope.mod = g.mod;
@@ -6213,6 +6323,18 @@ globalScope.beat = beat;
 // Filters (stateful, survive code updates)
 globalScope.lp = lp;
 globalScope.hp = hp;
+
+// Effects (stateful, buffers survive code updates)
+globalScope.echo = echo;
+globalScope.dub = dub;
+globalScope.crush = crush;
+globalScope.saturate = saturate;
+globalScope.fold = fold;
+globalScope.reverb = reverb;
+globalScope.pingPong = pingPong;
+globalScope.feedback = feedback;
+globalScope.comb = comb;
+globalScope.karplus = karplus;
 
 // Functional composition
 globalScope.gain = gain;
