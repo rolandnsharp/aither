@@ -83,6 +83,15 @@ In both cases, the `client/engine.js` running in the browser receives the code a
   **The Workflow**: When you find a "sweet spot" in the math, hit `<leader>s` to create a landmark in the Git tree. If experimentation results in a sonic issue, use the jog wheel to instantly "teleport" back to that specific commit hash. This creates a non-linear performance workflow where you can branch, explore, and return to known-good states.
 
 - [ ] **Audio Oscilloscope**: Use the browser window to visualize the audio waveform in real-time using Canvas/WebGL
+  - Design inspired by **socci** (realistic analogue oscilloscope written in Lua)
+  - Features to mimic:
+    * Authentic phosphor glow and persistence
+    * X-Y mode for Lissajous figures
+    * Adjustable timebase and voltage scales
+    * Trigger controls (edge, level, holdoff)
+    * Classic green/amber CRT aesthetic
+    * Beam intensity and focus controls
+  - Implementation: Use Canvas 2D or WebGL for authentic CRT rendering with bloom/glow effects
 - [ ] **Stereo Support**: Add stereo output with left/right channel helpers for binaural and spatial effects
   ```js
   // Example: Binaural "time-travel" explorer for jog wheel control
