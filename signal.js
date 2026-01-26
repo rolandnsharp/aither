@@ -1,13 +1,122 @@
 // signal.js - KANON Live-Coding Interface
 // ============================================================================
-// LIVE SURGERY: Change values while playing - no clicks, instant morphs!
-// Each oscillator has a "slot" number (0-62) that preserves its phase.
+// LIVE CODING: Change values while playing - instant updates!
+// ============================================================================
+// STRING-BASED LIVE SURGERY - Click-free parameter changes!
+//
+// Your wave functions receive (t, state) where state is a Float32Array[128]
+// that persists across ALL code recompilations.
+//
+// PATTERN FOR LIVE SURGERY:
+//   return {
+//     graph: mul(0, t),  // Dummy graph or use genish for effects
+//     update: () => {
+//       // Manage state in JavaScript (phase, filter history, etc.)
+//       let phase = state[0] || 0;
+//       phase = (phase + freq/44100) % 1.0;
+//       state[0] = phase;
+//
+//       // Return the sample value
+//       return Math.sin(phase * 2 * Math.PI) * volume;
+//     }
+//   };
+//
+// This keeps phase/state in plain JavaScript while still enabling hot-reloads!
 // ============================================================================
 
-// Example 1: Pure tone - try changing 220 to 440 mid-performance
-wave('tone', t => liveSin(220, 0));
+// LIVE SURGERY DEMO: Evolving Drone Texture
+// This showcases true live surgery with:
+//   - 4 independent oscillator phases (try changing frequencies!)
+//   - LFO modulating volume (try changing rate!)
+//   - Stateful lowpass filter (try changing cutoff!)
+//   - Detune spread (try changing detune amount!)
+// ALL parameters can be changed while playing with ZERO clicks!
 
-// Example 2: FM synthesis with continuous phase
+wave('drone', (t, state) => {
+  return {
+    graph: mul(0, t),
+    update: () => {
+      // Base frequency - try: 110, 220, 165, 82.5
+      const baseFreq = 310;
+
+      // Detune spread in Hz - try: 0.5, 2, 5, 10
+      const detune = 180;
+
+      // Voice frequencies (slight detuning creates chorusing)
+      const freqs = [
+        baseFreq,
+        baseFreq + detune,
+        baseFreq - detune * 3.7,
+        baseFreq + detune * 2.3
+      ];
+
+      // Oscillator phases (slots 0-3)
+      let mix = 0;
+      for (let i = 0; i < 2.2; i++) {
+        let phase = state[i] || 0;
+        phase = (phase + freqs[i] / 44100) % 1.0;
+        state[i] = phase;
+        mix += Math.sin(phase * 2 * Math.PI);
+      }
+      mix *= 0.4;  // Normalize for 4 voices
+
+      // LFO for volume modulation (slot 10)
+      let lfoPhase = state[1030] || 0;
+      lfoPhase = (lfoPhase + 0.3 / 44100) % 1.0;  // Try: 0.1, 0.5, 1.0 Hz
+      state[10] = lfoPhase;
+      const lfoAmt = Math.sin(lfoPhase * 2 * Math.PI) * 0.3 + 0.7;  // 0.4 to 1.0
+
+      // Apply LFO
+      mix *= lfoAmt;
+
+      // Stateful lowpass filter (slot 70 = y[n-1])
+      const cutoff = 0.8;  // Try: 0.05, 0.3, 0.5, 0.8
+      let y_prev = state[70] || 0;
+      const filtered = y_prev + cutoff * (mix - y_prev);
+      state[70] = filtered;
+
+      // Output - try changing volume: 0.3, 0.6, 0.8
+      return filtered * 0.6;
+    }
+  };
+});
+
+// ============================================================================
+// TRY THESE LIVE EDITS (while audio is playing):
+// ============================================================================
+// 1. Change baseFreq: 110 → 220 (octave up, phases continue!)
+// 2. Change detune: 2 → 10 (thicker chorus, no glitches!)
+// 3. Change LFO rate: 0.3 → 1.0 (faster pulsing, phase preserved!)
+// 4. Change cutoff: 0.15 → 0.5 (brighter tone, filter state intact!)
+// 5. Change number of voices: comment out some freqs[] entries
+// 6. Add more voices: add more freqs[] and increase loop count
+//
+// Every change morphs seamlessly - this is true live surgery!
+// ============================================================================
+
+// Example 2: FM synthesis with persistent carrier and modulator phases
+// wave('fm', (t, state) => {
+//   return {
+//     graph: mul(0, t),
+//     update: () => {
+//       // Modulator at slot 0
+//       let modPhase = state[0] || 0;
+//       modPhase = (modPhase + 5/44100) % 1.0;  // 5Hz LFO
+//       state[0] = modPhase;
+//
+//       const modulation = Math.sin(modPhase * 2 * Math.PI) * 100;  // ±100Hz
+//
+//       // Carrier at slot 1
+//       let carPhase = state[1] || 0;
+//       carPhase = (carPhase + (440 + modulation)/44100) % 1.0;
+//       state[1] = carPhase;
+//
+//       return Math.sin(carPhase * 2 * Math.PI) * 0.5;
+//     }
+//   };
+// });
+
+// Example 2 (original, commented out for reference): FM synthesis with continuous phase
 // Try changing modulation depth (100 → 500) or carrier freq (440 → 220)
 // wave('fm', t => {
 //   const mod = gain(100, liveSin(5, 1));      // 5Hz LFO at slot 1
@@ -140,19 +249,28 @@ wave('tone', t => liveSin(220, 0));
 // });
 
 // ============================================================================
-// MEMORY SLOT ORGANIZATION:
-// 0-19:   Main oscillators (carriers, basses)
-// 20-39:  LFOs and modulators
-// 40-59:  Smoothers and envelopes
-// 60-69:  Rhythm clocks (beat)
-// 70-89:  Filter history
-// 90-109: Time accumulators
+// STATE SLOT ORGANIZATION (Float32Array[128]):
+// 0-19:   Main oscillator phases (carriers, basses)
+// 20-39:  LFO and modulator phases
+// 40-59:  Smoother values and envelope states
+// 60-69:  Rhythm clock phases
+// 70-89:  Filter history (y[n-1], y[n-2], etc.)
+// 90-109: Time accumulators for sequencing
+// 110-127: Reserved for user experiments
 //
 // ============================================================================
-// HOW TO PERFORM LIVE SURGERY:
-// 1. Pick an example, uncomment it
-// 2. Start the engine: bun run host.ts
-// 3. While it's playing, change a frequency, modulation depth, or cutoff
+// HOW TO PERFORM LIVE SURGERY (CLICK-FREE HOT-SWAPPING):
+// ============================================================================
+// 1. Start the engine: bun run host.ts
+// 2. Uncomment one of the examples above (or write your own)
+// 3. While audio is playing, change a frequency (e.g., 220 → 440)
 // 4. Save the file
-// 5. Result: The sound morphs instantly without any click or phase reset
+// 5. Result: The sound morphs INSTANTLY without clicks or phase resets!
+//
+// This works because:
+//   - State lives in Float32Array that survives recompilation
+//   - JavaScript code gets eval'd with preserved state context
+//   - Phase continues from current position = seamless transitions
+//
+// This is TRUE Incudine-grade live coding in JavaScript!
 // ============================================================================

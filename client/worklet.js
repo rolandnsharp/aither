@@ -25,6 +25,17 @@ class GenishProcessor extends AudioWorkletProcessor {
         this.port.postMessage({ type: 'error', message: 'genish is not available in worklet!' });
       } else {
         this.port.postMessage({ type: 'info', message: `genish loaded, has cycle: ${typeof genish.cycle}, has gen: ${typeof genish.gen}` });
+
+        // CRITICAL: Create persistent surgical state for live surgery
+        // This Float32Array survives ALL code recompilations
+        if (!globalThis.SURGICAL_STATE_BUFFER) {
+          globalThis.SURGICAL_STATE_BUFFER = new Float32Array(128).fill(0);
+          // Wrap it in a genish data object for peek/poke compatibility
+          globalThis.SURGICAL_STATE = genish.data(globalThis.SURGICAL_STATE_BUFFER);
+          this.port.postMessage({ type: 'info', message: 'SURGICAL_STATE created and wrapped (128 slots)' });
+        } else {
+          this.port.postMessage({ type: 'info', message: 'SURGICAL_STATE already exists (reusing persistent state)' });
+        }
       }
 
       this.port.onmessage = this.handleMessage.bind(this);
@@ -72,6 +83,7 @@ class GenishProcessor extends AudioWorkletProcessor {
         }
 
         this.port.postMessage({ type: 'info', message: `Compiled ${waveRegistry.size} waves successfully` });
+        this.port.postMessage({ type: 'info', message: `Audio registry now has ${this.registry.size} active synths` });
       } catch (e) {
         this.port.postMessage({ type: 'error', message: `Error evaluating signal.js: ${e.message}` });
         console.error('[GenishProcessor] Eval error:', e);
@@ -87,17 +99,35 @@ class GenishProcessor extends AudioWorkletProcessor {
         throw new Error('genish.gen.createCallback not available');
       }
 
+      this.port.postMessage({ type: 'info', message: `Creating time accumulator...` });
       // Create time accumulator
       const t = genish.accum(1 / this.sampleRate);
 
-      // Call the user's function with t to build the genish graph
-      const genishGraph = graphFn(t);
+      this.port.postMessage({ type: 'info', message: `Calling user function to build graph...` });
+      // Call user function with t and SURGICAL_STATE_BUFFER
+      // User can return either:
+      //   1. A genish graph (compiled, no state updates)
+      //   2. { graph, update } where update() is called per-sample in JS
+      const result = graphFn(t, globalThis.SURGICAL_STATE_BUFFER);
 
-      this.port.postMessage({ type: 'info', message: `Graph created for '${label}', name: ${genishGraph?.name}` });
+      let genishGraph, updateFn;
+      if (result && typeof result === 'object' && result.graph) {
+        // User returned { graph, update }
+        genishGraph = result.graph;
+        updateFn = result.update || null;
+      } else {
+        // User returned just a graph
+        genishGraph = result;
+        updateFn = null;
+      }
 
+      this.port.postMessage({ type: 'info', message: `Graph created for '${label}', name: ${genishGraph?.name}, has update: ${!!updateFn}` });
+
+      this.port.postMessage({ type: 'info', message: `Compiling graph with createCallback...` });
       // Compile the genish graph into an optimized callback
       const compiledCallback = genish.gen.createCallback(genishGraph, genish.gen.memory);
 
+      this.port.postMessage({ type: 'info', message: `Creating callback context...` });
       // Create context object for calling the callback
       const context = { memory: genish.gen.memory.heap };
 
@@ -109,13 +139,14 @@ class GenishProcessor extends AudioWorkletProcessor {
         this.registry.set(label, {
           graph: compiledCallback,
           context: context,
+          update: updateFn,
           oldGraph: current.graph,
           oldContext: current.context,
           fade: 0.0,
           fadeDuration: 0.05 * this.sampleRate
         });
       } else {
-        this.registry.set(label, { graph: compiledCallback, context: context, oldGraph: null, fade: 1.0 });
+        this.registry.set(label, { graph: compiledCallback, context: context, update: updateFn, oldGraph: null, fade: 1.0 });
       }
 
       this.port.postMessage({ type: 'info', message: `Successfully compiled signal '${label}'` });
@@ -129,6 +160,7 @@ class GenishProcessor extends AudioWorkletProcessor {
     if (this.logProcessOnce) {
       this.port.postMessage({ type: 'info', message: `process() called, registry size: ${this.registry.size}` });
       this.logProcessOnce = false;
+      this.sampleDebugCount = 0;
     }
 
     const output = outputs[0];
@@ -142,8 +174,28 @@ class GenishProcessor extends AudioWorkletProcessor {
         try {
           let currentSample = 0;
 
-          // Call the compiled genish callback with the correct context
-          currentSample += synth.graph.call(synth.context);
+          // If there's a JavaScript update function, call it
+          // If it returns a number, use that as the sample (pure JS mode)
+          // Otherwise call the genish graph (hybrid mode)
+          if (synth.update) {
+            const updateResult = synth.update();
+            if (typeof updateResult === 'number') {
+              // Pure JavaScript mode: update() generates the sample
+              currentSample += updateResult;
+            } else {
+              // Hybrid mode: update() just updates state, graph generates sample
+              currentSample += synth.graph.call(synth.context);
+            }
+          } else {
+            // No update function: pure genish mode
+            currentSample += synth.graph.call(synth.context);
+          }
+
+          // Debug: log first few samples
+          if (this.sampleDebugCount < 5) {
+            this.port.postMessage({ type: 'info', message: `Sample ${this.sampleDebugCount} from '${label}': ${currentSample}` });
+            this.sampleDebugCount++;
+          }
 
           // Handle crossfade if an old graph exists
           if (synth.oldGraph) {
