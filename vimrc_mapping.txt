@@ -1,0 +1,17 @@
+" Vim / Neovim mapping for .vimrc or init.vim
+
+" Maps the <leader>p key sequence in visual mode to send the selected
+" text to the live-coding engine.
+vnoremap <leader>p :w !bun run eval.ts<CR>
+
+" Maps the <leader>p key sequence in normal mode to send the current
+" "paragraph" (text block separated by empty lines) to the engine.
+noremap <leader>p :'<,'>!bun run eval.ts<CR>
+
+" Your <leader> key is likely '\' by default. So, you would press
+" \p in normal mode to send the current code block.
+" 
+" To use this, add the lines above to your ~/.vimrc file (for Vim)
+" or ~/.config/nvim/init.vim file (for Neovim).
+" Then, open signal.js and try it out!
+

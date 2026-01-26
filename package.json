@@ -1,0 +1,14 @@
+{
+  "name": "kanon",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "^1.3.6"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "playwright": "^1.58.0"
+  }
+}
