@@ -6284,6 +6284,10 @@ class GenishProcessor extends AudioWorkletProcessor {
       this.registry = new Map();
       this.sampleRate = 44100;
 
+      // Preserve genish memory heap across all compilations
+      // This ensures STATE and SINE_TABLE indices remain valid
+      this.sharedContext = { memory: genish.gen.memory.heap };
+
       this.port.postMessage({ type: 'info', message: 'GenishProcessor ready' });
     } catch (e) {
       this.port.postMessage({ type: 'error', message: `Constructor error: ${e.toString()}` });
@@ -6367,21 +6371,28 @@ class GenishProcessor extends AudioWorkletProcessor {
 
       // Compile the genish graph into an optimized callback
       const compiledCallback = genish.gen.createCallback(genishGraph, genish.gen.memory);
-      const context = { memory: genish.gen.memory.heap };
+
+      // Use shared context to preserve memory across compilations
+      // This ensures STATE and SINE_TABLE remain valid
+      const context = this.sharedContext;
 
       const current = this.registry.get(label);
 
       if (current) {
-        // Hot-swap: instant replacement (no crossfade needed for stateful patterns)
-        // Phase continuity in STATE_BUFFER prevents clicks
+        // Hot-swap: INSTANT replacement - no crossfade
+        // For stateful patterns, crossfade is harmful because both graphs would
+        // call poke() causing phase to advance 2x during crossfade
+        // Instead, rely on phase continuity for click-free transitions
         this.registry.set(label, {
           graph: compiledCallback,
           context: context,
           update: updateFn,
           oldGraph: null,
-          fade: 1.0
+          oldContext: null,
+          fade: 1.0,
+          fadeDuration: 0
         });
-        this.port.postMessage({ type: 'info', message: `Recompiled '${label}' (instant swap)` });
+        this.port.postMessage({ type: 'info', message: `Recompiled '${label}' (instant)` });
       } else {
         // First compilation
         this.registry.set(label, { graph: compiledCallback, context: context, update: updateFn, oldGraph: null, fade: 1.0 });

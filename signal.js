@@ -17,7 +17,7 @@
 
 wave('hybrid-drone', (t) => {
   // === LIVE EDIT THESE PARAMETERS ===
-  const baseFreq = 420;   // Try: 110, 220, 330, 440 (no clicks!)
+  const baseFreq = 455;   // Try: 110, 220, 330, 440 (no clicks!)
   const detune = 15;      // Try: 0.5, 2, 5, 10, 20 (chorus width)
   const lfoRate = 0.3;    // Try: 0.1, 0.5, 1.0, 2.0 (pulsing speed)
 
