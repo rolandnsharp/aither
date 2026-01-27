@@ -34,6 +34,11 @@ class GenishProcessor extends AudioWorkletProcessor {
         // Wrap with genish.data() ONCE - reuse across all compilations
         globalThis.STATE = genish.data(globalThis.STATE_BUFFER, 1);
         this.port.postMessage({ type: 'info', message: `STATE wrapped: ${globalThis.STATE.name}` });
+
+        // PRE-ALLOCATE handover buffer (reused for all surgeries)
+        globalThis.HANDOVER_BUFFER = new Float32Array(128);
+        globalThis.HANDOVER_STATE = genish.data(globalThis.HANDOVER_BUFFER, 1);
+        this.port.postMessage({ type: 'info', message: 'Handover buffer pre-allocated' });
       }
 
       // Create sine wavetable for genish stateful oscillators
@@ -77,7 +82,7 @@ class GenishProcessor extends AudioWorkletProcessor {
       // Evaluate signal.js code in worklet context
       try {
         waveRegistry.clear();
-        this.registry.clear(); // Clear the audio registry to remove old sounds
+        // DON'T clear registry - let compileWave handle hot-swapping
         const genish = globalThis.genish;
 
         if (!genish) {
@@ -91,9 +96,19 @@ class GenishProcessor extends AudioWorkletProcessor {
 
         this.port.postMessage({ type: 'info', message: `Found ${waveRegistry.size} wave definitions` });
 
-        // Now compile all the waves
+        // Now compile all the waves (compileWave will hot-swap if they exist)
+        const compiledLabels = new Set();
         for (const [label, graphFn] of waveRegistry.entries()) {
           this.compileWave(label, graphFn);
+          compiledLabels.add(label);
+        }
+
+        // Remove any waves from registry that weren't just compiled
+        for (const label of this.registry.keys()) {
+          if (!compiledLabels.has(label)) {
+            this.registry.delete(label);
+            this.port.postMessage({ type: 'info', message: `Removed '${label}' (no longer defined)` });
+          }
         }
 
         this.port.postMessage({ type: 'info', message: `Compiled ${waveRegistry.size} waves successfully` });
@@ -153,11 +168,9 @@ class GenishProcessor extends AudioWorkletProcessor {
       const current = this.registry.get(label);
 
       if (current) {
-        // Hot-swap: STATE-SAFE CROSSFADE (50ms equal-power)
-        // Create genish.data() wrapper for captured state
-        const capturedStateBuffer = new Float32Array(globalThis.STATE_BUFFER);
-        const capturedState = genish.data(capturedStateBuffer, 1);
-        const capturedSineTable = genish.data(globalThis.SINE_TABLE_BUFFER, 1, { immutable: true });
+        // Hot-swap: Phase-locked handover with pre-allocated buffers
+        // Fast SIMD copy using .set()
+        globalThis.HANDOVER_BUFFER.set(globalThis.STATE_BUFFER);
 
         this.registry.set(label, {
           graph: compiledCallback,
@@ -166,13 +179,10 @@ class GenishProcessor extends AudioWorkletProcessor {
           oldGraph: current.graph,
           oldContext: current.context,
           fade: 0.0,
-          fadeDuration: 0.005 * this.sampleRate,  // 5ms - ultra-short
-          capturedState: capturedState,
-          capturedStateBuffer: capturedStateBuffer,
-          capturedSineTable: capturedSineTable,
+          fadeDuration: 0.05 * this.sampleRate,  // 50ms
           isFading: true
         });
-        this.port.postMessage({ type: 'info', message: `Recompiled '${label}' (5ms micro-xfade)` });
+        this.port.postMessage({ type: 'info', message: `Recompiled '${label}' (50ms phase-locked)` });
       } else {
         // First compilation
         this.registry.set(label, { graph: compiledCallback, context: context, update: updateFn, oldGraph: null, fade: 1.0 });
@@ -198,41 +208,31 @@ class GenishProcessor extends AudioWorkletProcessor {
         try {
           let currentSample = 0;
 
-          // STATE-SAFE CROSSFADE: Swap genish.data() wrappers during fade
-          if (synth.isFading && synth.capturedState) {
-            // Save real genish.data() wrappers
+          // Phase-locked handover: new graph uses HANDOVER, old uses STATE
+          if (synth.isFading && synth.oldGraph) {
+            // Swap to handover buffer for new graph
             const realState = globalThis.STATE;
-            const realSineTable = globalThis.SINE_TABLE;
-
-            // NEW GRAPH: Use captured genish.data() wrappers (isolated sandbox)
-            globalThis.STATE = synth.capturedState;
-            globalThis.SINE_TABLE = synth.capturedSineTable;
+            globalThis.STATE = globalThis.HANDOVER_STATE;
             currentSample = synth.graph.call(synth.context);
-
-            // OLD GRAPH: Use real genish.data() wrappers (continues normally)
             globalThis.STATE = realState;
-            globalThis.SINE_TABLE = realSineTable;
+
+            // Old graph uses real STATE
             const oldSample = synth.oldGraph.call(synth.oldContext);
 
-            // Equal-power crossfade (prevents volume dip)
+            // Equal-power crossfade
             const fadeValue = synth.fade / synth.fadeDuration;
-            const fadeIn = Math.sin(fadeValue * Math.PI * 0.5);   // 0 -> 1
-            const fadeOut = Math.cos(fadeValue * Math.PI * 0.5);  // 1 -> 0
+            const fadeIn = Math.sin(fadeValue * Math.PI * 0.5);
+            const fadeOut = Math.cos(fadeValue * Math.PI * 0.5);
             currentSample = (currentSample * fadeIn) + (oldSample * fadeOut);
 
             synth.fade++;
             if (synth.fade >= synth.fadeDuration) {
-              // Crossfade complete: sync captured buffer to real STATE_BUFFER
-              for (let i = 0; i < synth.capturedStateBuffer.length; i++) {
-                globalThis.STATE_BUFFER[i] = synth.capturedStateBuffer[i];
-              }
+              // Handover complete: fast SIMD sync
+              globalThis.STATE_BUFFER.set(globalThis.HANDOVER_BUFFER);
               synth.oldGraph = null;
               synth.oldContext = null;
-              synth.capturedState = null;
-              synth.capturedStateBuffer = null;
-              synth.capturedSineTable = null;
               synth.isFading = false;
-              this.port.postMessage({ type: 'info', message: `Crossfade complete for '${label}', STATE synchronized` });
+              this.port.postMessage({ type: 'info', message: `Handover complete for '${label}'` });
             }
           } else {
             // Normal operation (no crossfade)
