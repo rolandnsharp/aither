@@ -3,13 +3,13 @@
 // genish.js and wave-dsp.js are bundled before this code
 // They provide genish and helper functions globally
 
-// Define wave() function in worklet scope for signal.js to use
+// Define kanon() function in worklet scope for signal.js to use
 let waveRegistry = new Map();
-const wave = (label, graphFn) => {
+const kanon = (label, graphFn) => {
   waveRegistry.set(label, graphFn);
 };
-// Make wave() available globally for eval'd code
-globalThis.wave = wave;
+// Make kanon() available globally for eval'd code
+globalThis.kanon = kanon;
 
 class GenishProcessor extends AudioWorkletProcessor {
   constructor() {
@@ -113,10 +113,10 @@ class GenishProcessor extends AudioWorkletProcessor {
 
         this.port.postMessage({ type: 'info', message: 'Evaluating signal.js...' });
 
-        // Eval the code - wave() calls will populate waveRegistry
+        // Eval the code - kanon() calls will populate waveRegistry
         eval(code);
 
-        this.port.postMessage({ type: 'info', message: `Found ${waveRegistry.size} wave definitions` });
+        this.port.postMessage({ type: 'info', message: `Found ${waveRegistry.size} kanon definitions` });
 
         // CRITICAL: In genish, all graphs must be compiled BEFORE getting the final memory heap
         // Step 1: Compile all graphs (this populates genish.gen.memory)

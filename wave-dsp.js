@@ -6,7 +6,7 @@
 // ============================================================================
 //
 // 1. COMPOSITIONAL API (Recommended) - Auto-slotted stateful oscillators:
-//    wave('drone', () => withLfo(mixGain(voices(440, 2, 4), 0.4), 0.3, 0.25))
+//    kanon('drone', () => withLfo(mixGain(voices(440, 2, 4), 0.4), 0.3, 0.25))
 //
 //    Pros: Extremely concise (40+ lines → 1 line), phase persists across
 //          hot-reload, automatic slot management, surgery-ready
@@ -14,7 +14,7 @@
 //          deterministic slot allocation
 //
 // 2. LEGACY PATTERN - Manual peek/poke (for advanced DSP):
-//    wave('drone', () => {
+//    kanon('drone', () => {
 //      const phase = peek(globalThis.STATE, 0);
 //      const newPhase = mod(add(phase, 440/44100), 1.0);
 //      poke(globalThis.STATE, newPhase, 0);
@@ -25,7 +25,7 @@
 //    Cons: More verbose, manual slot management
 //
 // 3. HYBRID - Mix high-level sugar with manual state (slots 0-99 reserved):
-//    wave('drift', () => {
+//    kanon('drift', () => {
 //      const carrier = osc(440);  // Auto-slotted (100+)
 //      const drift = peek(globalThis.STATE, 0);  // Manual (0-99)
 //      poke(globalThis.STATE, drift + 0.01, 0);

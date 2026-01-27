@@ -5962,7 +5962,7 @@ ${output}
 // ============================================================================
 //
 // 1. COMPOSITIONAL API (Recommended) - Auto-slotted stateful oscillators:
-//    wave('drone', () => withLfo(mixGain(voices(440, 2, 4), 0.4), 0.3, 0.25))
+//    kanon('drone', () => withLfo(mixGain(voices(440, 2, 4), 0.4), 0.3, 0.25))
 //
 //    Pros: Extremely concise (40+ lines → 1 line), phase persists across
 //          hot-reload, automatic slot management, surgery-ready
@@ -5970,7 +5970,7 @@ ${output}
 //          deterministic slot allocation
 //
 // 2. LEGACY PATTERN - Manual peek/poke (for advanced DSP):
-//    wave('drone', () => {
+//    kanon('drone', () => {
 //      const phase = peek(globalThis.STATE, 0);
 //      const newPhase = mod(add(phase, 440/44100), 1.0);
 //      poke(globalThis.STATE, newPhase, 0);
@@ -5981,7 +5981,7 @@ ${output}
 //    Cons: More verbose, manual slot management
 //
 // 3. HYBRID - Mix high-level sugar with manual state (slots 0-99 reserved):
-//    wave('drift', () => {
+//    kanon('drift', () => {
 //      const carrier = osc(440);  // Auto-slotted (100+)
 //      const drift = peek(globalThis.STATE, 0);  // Manual (0-99)
 //      poke(globalThis.STATE, drift + 0.01, 0);
@@ -6337,13 +6337,13 @@ globalScope.gen = g.gen;
 // genish.js and wave-dsp.js are bundled before this code
 // They provide genish and helper functions globally
 
-// Define wave() function in worklet scope for signal.js to use
+// Define kanon() function in worklet scope for signal.js to use
 let waveRegistry = new Map();
-const wave = (label, graphFn) => {
+const kanon = (label, graphFn) => {
   waveRegistry.set(label, graphFn);
 };
-// Make wave() available globally for eval'd code
-globalThis.wave = wave;
+// Make kanon() available globally for eval'd code
+globalThis.kanon = kanon;
 
 class GenishProcessor extends AudioWorkletProcessor {
   constructor() {
@@ -6447,10 +6447,10 @@ class GenishProcessor extends AudioWorkletProcessor {
 
         this.port.postMessage({ type: 'info', message: 'Evaluating signal.js...' });
 
-        // Eval the code - wave() calls will populate waveRegistry
+        // Eval the code - kanon() calls will populate waveRegistry
         eval(code);
 
-        this.port.postMessage({ type: 'info', message: `Found ${waveRegistry.size} wave definitions` });
+        this.port.postMessage({ type: 'info', message: `Found ${waveRegistry.size} kanon definitions` });
 
         // CRITICAL: In genish, all graphs must be compiled BEFORE getting the final memory heap
         // Step 1: Compile all graphs (this populates genish.gen.memory)

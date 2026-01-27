@@ -12,7 +12,7 @@
 // Code reduction: 40+ lines → 1 line (98% reduction!)
 
 // Arrow function for deterministic slot allocation
-wave('minimal-drone', () =>
+kanon('minimal-drone', () =>
   withLfo(mixGain(voices(343, 1, 3), 1.0), 0.8, 0.85)
 );
 
@@ -21,17 +21,17 @@ wave('minimal-drone', () =>
 // ============================================================================
 
 // Wave 1: Low bass drone
-// wave('bass', () =>
+// kanon('bass', () =>
 //   withLfo(mixGain(voices(330, 2, 4), 0.3), 0.3, 0.25)
 // );
 
 // Wave 2: Mid drone (plays AT THE SAME TIME as bass)
-wave('mid', () =>
+kanon('mid', () =>
   withLfo(mixGain(voices(220, 3, 4), 0.25), 0.5, 0.20)
 );
 
 // Wave 3: High lead (ready to become looper later)
-// wave('lead', () =>
+// kanon('lead', () =>
 //   mul(osc(440), 0.15)
 // );
 
@@ -40,7 +40,7 @@ wave('mid', () =>
 // ============================================================================
 
 // Method chaining style (more readable for complex chains)
-// wave('chaining-drone', () =>
+// kanon('chaining-drone', () =>
 //   $(mix(...voices(375, 2, 4)))
 //     .mod(0.3, 0.25)
 //     .mul(0.4)
@@ -48,7 +48,7 @@ wave('mid', () =>
 // );
 
 // Explicit style (good for understanding the flow)
-// wave('explicit-drone', () => {
+// kanon('explicit-drone', () => {
 //   const v = voices(375, 2, 4);
 //   const mixed = mix(...v);
 //   const modulated = withLfo(mixed, 0.3, 0.25);
@@ -60,7 +60,7 @@ wave('mid', () =>
 // ============================================================================
 // Use slots 0-99 for custom state, auto-slots start at 100+
 
-// wave('drifting-drone', () => {
+// kanon('drifting-drone', () => {
 //   // Auto-slot oscillator
 //   const carrier = mul(osc(440), 0.5);
 //
@@ -79,7 +79,7 @@ wave('mid', () =>
 // Full manual control - patterns impossible with standard oscillators
 
 // Feedback chaos (non-linear feedback loop)
-// wave('feedback-chaos', () => {
+// kanon('feedback-chaos', () => {
 //   const last = peek(globalThis.STATE, 0);
 //   const next = sin(add(last, mul(last, 0.5)));
 //   poke(globalThis.STATE, next, 0);

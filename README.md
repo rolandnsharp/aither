@@ -51,17 +51,17 @@ Return a genish graph directly. Best for effects, filters, and simple patches.
 
 ```javascript
 // 440Hz sine wave
-wave('sine', (t) => mul(cycle(440), 0.5));
+kanon('sine', (t) => mul(cycle(440), 0.5));
 
 // FM synthesis
-wave('fm', (t) => {
+kanon('fm', (t) => {
   const modulator = mul(cycle(5), 100);
   const carrier = cycle(add(440, modulator));
   return mul(carrier, 0.5);
 });
 
 // Filtered sawtooth
-wave('bass', (t) => lp(mul(phasor(110), 0.8), 0.1));
+kanon('bass', (t) => lp(mul(phasor(110), 0.8), 0.1));
 ```
 
 **Pros:** Fast (compiled by genish), clean syntax
@@ -72,7 +72,7 @@ wave('bass', (t) => lp(mul(phasor(110), 0.8), 0.1));
 Return `{graph, update}` where `update()` manages persistent state.
 
 ```javascript
-wave('drone', (t, state) => {
+kanon('drone', (t, state) => {
   return {
     graph: mul(0, t),  // Dummy graph (or use genish for effects)
     update: () => {
@@ -139,7 +139,7 @@ The power of KANON is that you can change parameters **while audio is playing** 
 
 ```javascript
 // Start with this:
-wave('drone', (t, state) => {
+kanon('drone', (t, state) => {
   return {
     graph: mul(0, t),
     update: () => {
