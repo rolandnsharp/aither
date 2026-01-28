@@ -94,3 +94,49 @@ kanon('vortex', (t) => {
 ```
 
 These functions (`sin`, `mul`) do not perform calculations directly. Instead, they return symbolic "Node" objects that represent the mathematical operation. The `Compiler` would then have a much easier job of walking this pre-built graph of nodes to generate the stateful Player. This achieves the same goal as Proxy-tracing but requires the user to write code using this specific DSL.
+
+### Kanon Phase 2: The Symbolic JIT & Phase Alignment
+
+#### I. The Objective
+To transform a pure \(f(t)\) function into a Stateful Player that achieves the performance of a hand-written flux loop while maintaining Absolute Phase Continuity during hot-reloads—eliminating the need for the "Surgical Mask" of cross-fading.
+
+#### II. Component A: Proxy-Based Tracing (The "Blueprint Scanner")
+Instead of parsing strings, we use a Tracing Proxy to discover the "Topology" of the user's math.
+-   **The Trace**: When compile(recipe) is called, the engine passes a Proxy object (acting as \(t\)) into the recipe.
+-   **The Map**: The Proxy records every mathematical operation (add, mul, sin, pow).
+-   **The Identification**: The compiler identifies "Periodic Components." Example: If it sees sin(t * 440), it marks this as an Oscillator Node with a frequency of 440.
+
+#### III. Component B: The "Surgical" Player Generator
+The compiler then "assembles" a hidden, stateful `update()` function based on the Map.
+-   **State Injection**: For every identified Oscillator, the engine allocates a phase slot in `globalThis.STATE`.
+-   **Logic Rewriting**: It generates a high-performance function string:
+    ```javascript
+    // Generated "Surgical" Code
+    (state, idx, delta) => {
+      state[idx] = (state[idx] + delta) % 1.0; // Phase accumulation
+      return Math.sin(state[idx] * 6.28318);
+    }
+    ```
+    JIT Activation: The engine uses `new Function()` to compile this string into a "Hot" machine-code loop.
+
+#### IV. Component C: Algebraic Phase Alignment (The "Snap")
+When the user edits `signals.js`, we must prevent the "Ghosting" of the torus.
+-   **The Transition Window**: For the first sample of the new code, the engine performs a Phase Match.
+-   **The Calculation**: It samples the old function: `v = oldFn(t)`. It solves for the new function's starting point: `v = newFn(t + offset)`.
+-   **The Offset**: It applies a Temporal Offset (\(\Delta t\)) to the new `CHRONOS` input so that the wave's value and slope match the previous frame perfectly.
+-   **The Slew**: Over 128 samples, it "bleeds" this offset out until the \(t\) is back in sync with the global universe, creating an Elastic Morph rather than a teleportation.
+
+#### V. Technical Requirements for Claude Code
+1.  **The Tracer**: Implement a `trace(fn)` utility that returns an Abstract Syntax Tree (AST) of the math operations.
+2.  **The State Map**: Create a persistent registry that maps specific code blocks to `globalThis.STATE` indices so that even if you change a frequency, the oscillator itself remembers its phase.
+3.  **The Aligner**: Implement a `findSyncOffset` function that uses a simple binary search or Newton's method to find the \(\Delta t\) that aligns the two waveforms at the point of surgery.
+
+#### The Pythagorean "Magnum Opus" Result:
+Once Phase 2 is implemented, your 3D Torus will behave like a physical entity made of rubber or light. When you change the math:
+-   The torus will not fade/ghost (Cross-fading is gone).
+-   The torus will not flicker or jump (Phase resets are gone).
+-   The torus will stretch, warp, and snap into its new geometry with Physical Continuity.
+
+#### Starting Phase 2
+Begin by assigning the Tracer task to Claude Code.
+**Suggested Next Step**: Start building the "Trace Recorder". It's the simplest component to get working, and it provides immediate feedback by showing your `f(t)` math as a "Recipe" in the terminal.
