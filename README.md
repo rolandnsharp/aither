@@ -1,14 +1,14 @@
-# Signal API - Pure Mathematical Audio Synthesis
+# Kanon - Pure Mathematical Audio Synthesis
 
 Minimal, composable audio synthesis for live coding.
 
-**⚡ Powered by Bun** - Signal requires [Bun](https://bun.sh) for proper tail call optimization, enabling elegant recursive synthesis techniques like fractal music generation.
+**⚡ Powered by Bun** - Kanon requires [Bun](https://bun.sh) for proper tail call optimization, enabling elegant recursive synthesis techniques like fractal music generation.
 
-## What Makes Signal Different?
+## What Makes Kanon Different?
 
 Most JavaScript live coding libraries (like Tidal Cycles, Gibber, Strudel) and tools like Sonic Pi act as frontends that send commands to SuperCollider or other synthesis engines. You're essentially scripting a synthesizer, not programming sound itself.
 
-**Signal is different**: you're writing the mathematical wave function directly. When you write:
+**Kanon is different**: you're writing the mathematical wave function directly. When you write:
 
 ```javascript
 signal('tone', t => Math.sin(2 * Math.PI * 432 * t) * 0.2)
@@ -16,7 +16,7 @@ signal('tone', t => Math.sin(2 * Math.PI * 432 * t) * 0.2)
 
 You're not calling a synthesizer - you're computing the actual sample values that become the sound wave. You're learning and interacting with the wave function itself, understanding exactly how sound works at the sample level.
 
-This makes Signal ideal for:
+This makes Kanon ideal for:
 - Learning digital signal processing fundamentals
 - Understanding how synthesis actually works
 - Direct mathematical control over every sample
@@ -25,7 +25,7 @@ This makes Signal ideal for:
 ## Quick Start
 
 ```javascript
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 
 // Create a sine wave - audio starts automatically!
 signal('tone', t => Math.sin(2 * Math.PI * 432 * t) * 0.2);
@@ -38,22 +38,22 @@ First, install Bun:
 curl -fsSL https://bun.sh/install | bash
 ```
 
-Then install Signal:
+Then install Kanon:
 ```bash
-bun install -g @rolandnsharp/signal
+bun install -g @rolandnsharp/kanon
 ```
 
 ## Live Coding
 
 ```bash
-bun signal sessions/example-session.js
+bun kanon sessions/example-session.js
 ```
 
 Edit `example-session.js` and save - changes apply immediately!
 
 ### Why Bun?
 
-Signal leverages Bun's **proper tail call optimization** (TCO) to enable elegant recursive patterns that would cause stack overflows in Node.js. This allows:
+Kanon leverages Bun's **proper tail call optimization** (TCO) to enable elegant recursive patterns that would cause stack overflows in Node.js. This allows:
 
 - Pure functional Y-combinator recursion for generative music
 - Deep Mandelbrot set exploration for infinite fractal journeys
@@ -199,10 +199,10 @@ Stereo signals support all chainable methods (gain, fx, clip, fold, delay, feedb
 
 ## Functional Programming with Y-Combinator
 
-Signal exports the Y-combinator and functional utilities for elegant recursive synthesis:
+Kanon exports the Y-combinator and functional utilities for elegant recursive synthesis:
 
 ```javascript
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 const { Y, pipe, compose, curry } = signal;
 
 // Recursive Fibonacci with Y-combinator (anonymous recursion!)
@@ -241,7 +241,7 @@ signal('fractal', t => {
 ### Rhythm
 
 ```javascript
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 const { step, euclidean } = signal;
 
 // Beat/phase info
@@ -253,14 +253,14 @@ const pattern = euclidean(5, 16)  // 5 pulses in 16 steps
 
 **Why `step` instead of a `tempo` helper?**
 
-Signal uses `step(t, bpm, subdivision)` instead of a separate tempo API because:
+Kanon uses `step(t, bpm, subdivision)` instead of a separate tempo API because:
 
 1. **Explicit math**: You see exactly what's happening - `step` converts continuous time into discrete rhythmic components. No hidden state or scheduling.
 2. **Pure function**: `Time → {beat, index, phase}` - same input always gives same output
 3. **Composable**: You take the output and use it directly in your DSP math
 4. **Live coding friendly**: BPM is right there in your code - just change `step(t, 60, 8)` to `step(t, 120, 8)` and save
 
-A separate "tempo" API would require global state and hide the time→rhythm relationship. With `step`, you're writing the math yourself - Signal just reduces boilerplate.
+A separate "tempo" API would require global state and hide the time→rhythm relationship. With `step`, you're writing the math yourself - Kanon just reduces boilerplate.
 
 **Controlling tempo:**
 ```javascript
@@ -280,7 +280,7 @@ return phiFractal(4, 110, 0.3, t) * env.exp(phase, 8);
 ### Melody
 
 ```javascript
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 const { freq, mtof, ftom, scales } = signal;
 
 // Scale degree to frequency
@@ -294,7 +294,7 @@ ftom(440) // => 69
 ### Scales
 
 ```javascript
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 const { scales } = signal;
 
 scales.major       // [0, 2, 4, 5, 7, 9, 11, 12]
@@ -307,7 +307,7 @@ scales.blues       // [0, 3, 5, 6, 7, 10, 12]
 ### Envelopes
 
 ```javascript
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 const { env } = signal;
 
 env.exp(phase, 5)                           // Exponential decay
@@ -317,12 +317,12 @@ env.adsr(phase, duration, a, d, s, r)      // ADSR envelope
 
 ## Imperative Programming
 
-Signal API works great with loops, arrays, and imperative logic:
+Kanon API works great with loops, arrays, and imperative logic:
 
 ### Generate Chord with Loop
 
 ```javascript
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 const { freq, scales } = signal;
 
 const chordDegrees = [0, 4, 7, 11];  // Major 7th
@@ -350,7 +350,7 @@ for (let i = 0; i < 8; i++) {
 ### Generate Drum Pattern with Nested Loops
 
 ```javascript
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 const { step, env } = signal;
 
 // Create multiple kick drums with different patterns
@@ -478,7 +478,7 @@ See `imperative-session.js` for more examples.
 
 ## JavaScript Patterns for Live Coding
 
-Signal leverages JavaScript itself for live coding - no special syntax needed.
+Kanon leverages JavaScript itself for live coding - no special syntax needed.
 
 ### Array Indexing for Value Cycling
 
@@ -553,7 +553,7 @@ signal('bass').sin(110)
 ### Melodic Sequencer
 
 ```javascript
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 const { step, freq, env, scales } = signal;
 
 signal('melody', t => {
@@ -571,7 +571,7 @@ signal('melody', t => {
 ### Euclidean Kick
 
 ```javascript
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 const { step, euclidean, env } = signal;
 
 signal('kick', t => {

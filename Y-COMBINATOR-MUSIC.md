@@ -4,7 +4,7 @@
 
 The Y combinator is a higher-order function from lambda calculus that enables recursion without explicit self-reference. In music generation, this creates elegant self-similar structures, fractals, and algorithmic compositions that emerge naturally from pure functional transformations.
 
-**Why this matters for Signal:**
+**Why this matters for Kanon:**
 - Pure functional - no state or mutation
 - Mathematical elegance - lambda calculus meets music theory
 - Self-similar structures - fractals emerge naturally
@@ -61,7 +61,7 @@ const Z = f => (
 Self-similar melodic structures that repeat at different scales.
 
 ```javascript
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 const { freq, scales, env, step } = signal;
 
 // Fractal melody generator
@@ -679,7 +679,7 @@ const deepFib = trampolineY(recurse => n => {
 ### Example 1: Self-Similar Composition
 
 ```javascript
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 const { freq, scales, env, step } = signal;
 
 // Multi-level fractal composition

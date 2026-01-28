@@ -145,7 +145,7 @@ function* chain(...generators) {
 ### Composition Example
 
 ```javascript
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 const { step, freq, scales, env } = signal;
 
 // Start with infinite pattern
@@ -687,7 +687,7 @@ signal('lsystem', t => {
 Combine everything into an evolving composition.
 
 ```javascript
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 const { step, freq, scales, env } = signal;
 
 // Multiple generators running in parallel

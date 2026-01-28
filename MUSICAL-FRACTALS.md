@@ -64,7 +64,7 @@ const zoom = Math.pow(2, t / 10);  // Doubles every 10 seconds
 ## 1. The Musical Mandelbrot: Parameter Space Exploration
 
 ```javascript
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 const { freq, scales, env, step } = signal;
 
 // Musical Mandelbrot: z → z² + c, but for melodies

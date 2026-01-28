@@ -1,21 +1,21 @@
 {
-  "name": "@rolandnsharp/signal",
+  "name": "@rolandnsharp/kanon",
   "version": "1.0.4",
   "description": "Minimal, composable audio synthesis for live coding. Powered by Bun for proper tail call optimization.",
-  "homepage": "https://github.com/rolandnsharp/signal#readme",
+  "homepage": "https://github.com/rolandnsharp/kanon#readme",
   "bugs": {
-    "url": "https://github.com/rolandnsharp/signal/issues"
+    "url": "https://github.com/rolandnsharp/kanon/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rolandnsharp/signal.git"
+    "url": "git+https://github.com/rolandnsharp/kanon.git"
   },
   "license": "ISC",
   "author": "",
   "type": "commonjs",
   "main": "src/index.js",
   "bin": {
-    "signal": "src/runner.js"
+    "kanon": "src/runner.js"
   },
   "engines": {
     "bun": ">=1.0.0"

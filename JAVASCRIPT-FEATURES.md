@@ -47,7 +47,7 @@ function* euclidean(pulses, steps) {
 }
 
 // Usage with Signal
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 const { step, env } = signal;
 
 const pattern = euclidean(5, 16);
@@ -794,7 +794,7 @@ const timeline = Array(16).fill(0).map((_, i) =>
 ## Complete Example: Combining Features
 
 ```javascript
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 const { step, freq, scales, env } = signal;
 
 // 1. Generator for pattern

@@ -1,10 +1,10 @@
-# Why Signal Requires Bun
+# Why Kanon Requires Bun
 
-Signal commits to Bun as its runtime for technical and philosophical reasons.
+Kanon commits to Bun as its runtime for technical and philosophical reasons.
 
 ## The Technical Reason: Tail Call Optimization
 
-Signal enables elegant recursive patterns like:
+Kanon enables elegant recursive patterns like:
 
 ```javascript
 // Y-combinator for anonymous recursion
@@ -56,7 +56,7 @@ In languages like Haskell, Scheme, and ML, the Y-combinator is elegant AND fast.
 
 **JavaScript broke this promise.** V8's decision to remove TCO means elegant recursion comes with a performance penalty (or doesn't work at all).
 
-Signal chooses **not to compromise**. We want:
+Kanon chooses **not to compromise**. We want:
 
 ```javascript
 // THIS - elegant, pure, beautiful
@@ -96,7 +96,7 @@ For a live coding environment, speed matters. Faster reload = better flow state.
 ## The Trade-off
 
 **We lose:**
-- Node.js compatibility (Signal won't run on Node/Deno)
+- Node.js compatibility (Kanon won't run on Node/Deno)
 - Some npm package compatibility (though most work)
 
 **We gain:**
@@ -117,11 +117,11 @@ Bun is no longer experimental. It's a legitimate production runtime.
 
 ## For Users
 
-If you want to use Signal:
+If you want to use Kanon:
 
 1. Install Bun: `curl -fsSL https://bun.sh/install | bash`
-2. Install Signal: `bun install -g @rolandnsharp/signal`
-3. Run sessions: `bun signal sessions/your-session.js`
+2. Install Kanon: `bun install -g @rolandnsharp/kanon`
+3. Run sessions: `bun kanon sessions/your-session.js`
 
 That's it. No complex setup, no compromises.
 

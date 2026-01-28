@@ -1,6 +1,6 @@
-# Signal API Examples
+# Kanon API Examples
 
-Complete guide to the Signal API with examples.
+Complete guide to the Kanon API with examples.
 
 ---
 
@@ -115,7 +115,7 @@ Signal uses `step(t, bpm, subdivision)` because it's a **pure mathematical funct
 When a continuous signal sounds "mushed together," add rhythmic gating:
 
 ```javascript
-const { step, env } = require('@rolandnsharp/signal');
+const { step, env } = require('@rolandnsharp/kanon');
 
 // Without rhythm - continuous drone (sounds muddy)
 signal('continuous', t => {
@@ -132,7 +132,7 @@ signal('gated', t => {
 ### Tempo Ranges
 
 ```javascript
-const { step, env } = require('@rolandnsharp/signal');
+const { step, env } = require('@rolandnsharp/kanon');
 
 // Very slow - meditative, spacious (20-40 BPM)
 signal('slow', t => {
@@ -165,7 +165,7 @@ The third parameter is **note subdivision**, not the number of steps:
 
 ```javascript
 // Same BPM, different subdivisions
-const { step, env } = require('@rolandnsharp/signal');
+const { step, env } = require('@rolandnsharp/kanon');
 
 // Quarter notes - sparse (4 notes per bar at 4/4)
 signal('quarters', t => {
@@ -189,7 +189,7 @@ signal('sixteenths', t => {
 ### Live Tempo Changes
 
 ```javascript
-const { step, env } = require('@rolandnsharp/signal');
+const { step, env } = require('@rolandnsharp/kanon');
 
 // Change this value and save file for instant tempo change
 const BPM = 60;  // Try 40, 80, 120, 160...
@@ -203,7 +203,7 @@ signal('adaptable', t => {
 ### Using Beat Counter for Tempo-Synced Changes
 
 ```javascript
-const { step, env } = require('@rolandnsharp/signal');
+const { step, env } = require('@rolandnsharp/kanon');
 
 signal('evolving', t => {
   const { beat, phase } = step(t, 100, 8);
@@ -426,7 +426,7 @@ signal('smart').sin(440 * Math.pow(2, degree / 12)).gain(0.2);
 ### Bitwise Operators for Compact Rhythms
 
 ```javascript
-const { step } = require('@rolandnsharp/signal');
+const { step } = require('@rolandnsharp/kanon');
 
 // Binary literal - each bit is a step (1 = hit, 0 = rest)
 const pattern = 0b1001010010010100;  // 16-bit kick pattern
@@ -481,7 +481,7 @@ signal('preset').sin(current.freq + current.detune).gain(current.gain);
 const random = seed => Math.abs(Math.sin(seed) * 10000) % 1;
 
 // Generate the same "random" pattern every time
-const { step } = require('@rolandnsharp/signal');
+const { step } = require('@rolandnsharp/kanon');
 
 signal('generative', t => {
   const { index, phase } = step(t, 120, 8);
@@ -541,7 +541,7 @@ synth({ freq: 220, wave: 'square', gain: 0.3 });
 ### Bitwise Math Tricks
 
 ```javascript
-const { step } = require('@rolandnsharp/signal');
+const { step } = require('@rolandnsharp/kanon');
 
 signal('fast', t => {
   const { index, phase } = step(t, 140, 16);

@@ -25,7 +25,7 @@ Signal.prototype.delay = function(delayTime) {
 };
 
 // Usage
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 
 const dry = signal.sin(440).gain(0.3);
 const wet = dry.delay(0.5);  // 500ms delay
@@ -144,7 +144,7 @@ Signal.prototype.feedback = function(delayTime, feedbackAmount) {
 };
 
 // Usage - classic dub echo
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 const { step, env } = signal;
 
 signal('dub', t => {
@@ -469,7 +469,7 @@ signal('hall', t => dry.eval(t) + wet.eval(t));
 ### Example 1: Dub Delay Effect
 
 ```javascript
-const signal = require('@rolandnsharp/signal');
+const signal = require('@rolandnsharp/kanon');
 const { step, env, freq, scales } = signal;
 
 // Melody
