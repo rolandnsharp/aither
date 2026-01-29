@@ -1,11 +1,11 @@
 // src/audio_engine/player.js
 // ============================================================================
 // Player Class - Wraps a recipe and manages its playback state.
-// Refactored for N-Dimensional Audio. The `update` method now consistently
-// returns a vector of `STRIDE` length.
+// Now passes LUT functions to JIT-compiled update functions.
 // ============================================================================
 
 const { ringBuffer } = require('./storage.js');
+const { lookupSin, lookupCos } = require('./luts.js'); // Import LUT functions
 const STRIDE = ringBuffer.stride;
 
 class Player {
@@ -31,26 +31,32 @@ class Player {
   update(t) {
     let output;
     if (this.isStateful) {
-      output = this.updateFn(globalThis.STATE_ARRAY, this.baseStateIndex, globalThis.dt);
+      // --- Pass LUTs to JIT-compiled function ---
+      // The JIT-compiled function is expecting these as its final arguments.
+      output = this.updateFn(
+        globalThis.STATE_ARRAY, 
+        this.baseStateIndex, 
+        globalThis.dt,
+        lookupSin,
+        lookupCos
+      );
     } else {
+      // Pure f(t) recipes don't use the JIT, so no change here.
       output = this.updateFn(t);
     }
 
     const finalFrame = new Array(STRIDE);
 
     if (typeof output === 'number') {
-      // --- Auto-Upmix Mono to N-channel ---
       const sample = output * this.crossfadeVolume;
       for (let i = 0; i < STRIDE; i++) {
         finalFrame[i] = sample;
       }
     } else if (Array.isArray(output) && output.length === STRIDE) {
-      // --- Per-Channel Volume for N-channel signal ---
       for (let i = 0; i < STRIDE; i++) {
-        finalFrame[i] = (output[i] || 0) * this.crossfadeVolume; // Add guard for NaN/undefined
+        finalFrame[i] = (output[i] || 0) * this.crossfadeVolume;
       }
     } else {
-      // If the output is invalid, return silence for all channels.
       for (let i = 0; i < STRIDE; i++) {
         finalFrame[i] = 0;
       }
