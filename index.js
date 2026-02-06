@@ -4,7 +4,7 @@
 // Run with: bun --hot index.js
 // ============================================================================
 
-import { start, stop, status } from './engine.js';
+import { start, stop, status } from './src/engine.js';
 
 // Load signal definitions (live-codeable)
 import './signals.js';

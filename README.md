@@ -287,7 +287,7 @@ In Kanon:
 
 ### vs. Lisp/Incudine
 
-See [DOCS/BEYOND-LISP.md](DOCS/BEYOND-LISP.md) for philosophical comparison.
+See [docs/BEYOND-LISP.md](docs/BEYOND-LISP.md) for philosophical comparison.
 
 **Key advantages**:
 - No RT kernel requirement
@@ -298,12 +298,12 @@ See [DOCS/BEYOND-LISP.md](DOCS/BEYOND-LISP.md) for philosophical comparison.
 
 ## Documentation
 
-- **[SURGERY_GUIDE.md](DOCS/SURGERY_GUIDE.md)** - Live coding workflow and best practices
-- **[BEYOND-LISP.md](DOCS/BEYOND-LISP.md)** - How Kanon transcends Lisp/Incudine
-- **[PERFORMANCE_OPTIMIZATION.md](PERFORMANCE_OPTIMIZATION.md)** - Optimization strategies
-- **[AUDIO_BACKEND_ARCHITECTURE.md](AUDIO_BACKEND_ARCHITECTURE.md)** - Backend design
-- **[SAMPLE_RATE_ARCHITECTURE.md](SAMPLE_RATE_ARCHITECTURE.md)** - Sample rate handling
-- **[STATE_MANAGEMENT_BEST_PRACTICES.md](STATE_MANAGEMENT_BEST_PRACTICES.md)** - State patterns
+- **[SURGERY_GUIDE.md](docs/SURGERY_GUIDE.md)** - Live coding workflow and best practices
+- **[BEYOND-LISP.md](docs/BEYOND-LISP.md)** - How Kanon transcends Lisp/Incudine
+- **[PERFORMANCE_OPTIMIZATION.md](docs/PERFORMANCE_OPTIMIZATION.md)** - Optimization strategies
+- **[AUDIO_BACKEND_ARCHITECTURE.md](docs/AUDIO_BACKEND_ARCHITECTURE.md)** - Backend design
+- **[SAMPLE_RATE_ARCHITECTURE.md](docs/SAMPLE_RATE_ARCHITECTURE.md)** - Sample rate handling
+- **[STATE_MANAGEMENT_BEST_PRACTICES.md](docs/STATE_MANAGEMENT_BEST_PRACTICES.md)** - State patterns
 
 ## Roadmap
 
