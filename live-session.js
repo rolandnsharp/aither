@@ -8,6 +8,7 @@
 import { kanon, clear } from './src/kanon.js';
 import { pipe, sin, saw, tri, square, lfo, gain, pan, stereo, mix, am, softClip, feedback } from './src/helpers.js';
 
+clear();
 // ============================================================================
 // MANUAL API TEST - Basic sine for testing hot-reload
 // ============================================================================
@@ -41,41 +42,40 @@ import { pipe, sin, saw, tri, square, lfo, gain, pan, stereo, mix, am, softClip,
 // ============================================================================
 // A pure sine wave whose volume breathes with an LFO
 
-// kanon('breathing-sine', (state, idx) => {
-//   const carrierFreq = 220.0; // A3 note
-//   const lfoFreq = 0.5; // Breathe twice per second
-//   const lfoDepth = 0.7; // How much the volume changes
+kanon('breathing-sine', (state, idx) => {
+  const carrierFreq = 220.0; // A3 note
+  const lfoFreq = 0.5; // Breathe twice per second
+  const lfoDepth = 0.7; // How much the volume changes
 
-//   return {
-//     update: (sr) => {
-//       // Carrier oscillator (state slot idx)
-//       let carrierPhase = state[idx];
-//       carrierPhase = (carrierPhase + carrierFreq / sr) % 1.0;
-//       state[idx] = carrierPhase;
-//       const carrier = Math.sin(carrierPhase * 2 * Math.PI);
+  return {
+    update: (sr) => {
+      // Carrier oscillator (state slot idx)
+      let carrierPhase = state[idx];
+      carrierPhase = (carrierPhase + carrierFreq / sr) % 1.0;
+      state[idx] = carrierPhase;
+      const carrier = Math.sin(carrierPhase * 2 * Math.PI);
 
-//       // LFO for amplitude modulation (state slot idx+1)
-//       let lfoPhase = state[idx + 1];
-//       lfoPhase = (lfoPhase + lfoFreq / sr) % 1.0;
-//       state[idx + 1] = lfoPhase;
-//       // Convert LFO to unipolar (0..1)
-//       const lfo = (Math.sin(lfoPhase * 2 * Math.PI) + 1) * 0.5;
+      // LFO for amplitude modulation (state slot idx+1)
+      let lfoPhase = state[idx + 1];
+      lfoPhase = (lfoPhase + lfoFreq / sr) % 1.0;
+      state[idx + 1] = lfoPhase;
+      // Convert LFO to unipolar (0..1)
+      const lfo = (Math.sin(lfoPhase * 2 * Math.PI) + 1) * 0.5;
 
-//       // Apply amplitude modulation
-//       const amplitude = (1 - lfoDepth) + lfo * lfoDepth;
-//       const output = carrier * amplitude * 0.5; // Scale to safe level
+      // Apply amplitude modulation
+      const amplitude = (1 - lfoDepth) + lfo * lfoDepth;
+      const output = carrier * amplitude * 0.5; // Scale to safe level
 
-//       return [output]; // Mono output
-//     }
-//   };
-// });
+      return [output]; // Mono output
+    }
+  };
+});
 
 // ============================================================================
 // EXAMPLE 2: Vortex Morph (Phase-Modulated Feedback Loop)
 // ============================================================================
 // An organic, growling cello-like tone that continuously evolves
 // Uses phase modulation for complex, non-linear harmonics
-
 
 
 
@@ -119,11 +119,11 @@ import { pipe, sin, saw, tri, square, lfo, gain, pan, stereo, mix, am, softClip,
 
 // kanon('vortex-333', (mem, idx) => {
 //   // --- SURGERY PARAMS (change these live!) ---
-//   const baseFreq = 444.0;    // Deep G2 note
+//   const baseFreq = 22.0;    // Deep G2 note
 //   // const modRatio = 1.618;    // Golden Ratio (non-harmonic shimmer)
-//   const modRatio = 1.1;    // Golden Ratio (non-harmonic shimmer)
+//   const modRatio = 2.1;    // Golden Ratio (non-harmonic shimmer)
 //   const morphSpeed = 0.1;    // How fast the "vortex" breathes (Hz)
-//   const intensity = 7.0;     // Modulation depth (try 50.0 for chaos!)
+//   const intensity = 44;     // Modulation depth (try 50.0 for chaos!)
 
 //   return {
 //     update: (sr) => {
@@ -184,7 +184,7 @@ import { pipe, sin, saw, tri, square, lfo, gain, pan, stereo, mix, am, softClip,
 //       const sample = Math.sin(p1 * 2 * Math.PI + modulator);
 
 //       // Return as a mono-vector (STRIDE 1)
-//       return [sample * 0.5];
+//       return [sample * 0.2];
 //     }
 //   };
 // });
@@ -197,7 +197,7 @@ import { pipe, sin, saw, tri, square, lfo, gain, pan, stereo, mix, am, softClip,
 // Pure functional transformer: state -> nextState
 // UNCOMMENT to hear it (it's slow and pulsing - that's correct!)
 
-// // The Physics: Pure state transition function
+// The Physics: Pure state transition function
 // const vanDerPolStep = (state, { mu, dt }) => {
 //   const [x, y] = state;
 
@@ -328,14 +328,14 @@ import { pipe, sin, saw, tri, square, lfo, gain, pan, stereo, mix, am, softClip,
 // ));
 
 // EXAMPLE 6: Mixed waveforms
-kanon('mixed-waves', pipe(
-  mix(
-    pipe(sin(220), gain(0.3)),    // A3 sine
-    pipe(saw(330), gain(0.2)),    // E4 sawtooth
-    pipe(tri(440), gain(0.2))     // A4 triangle
-  ),
-  softClip()          // Soft clipping prevents distortion
-));
+// kanon('mixed-waves', pipe(
+//   mix(
+//     pipe(sin(240), gain(0.3)),    // A3 sine
+//     // pipe(saw(330), gain(0.2)),    // E4 sawtooth
+//     // pipe(tri(440), gain(0.2))     // A4 triangle
+//   ),
+//   softClip()          // Soft clipping prevents distortion
+// ));
 
 // EXAMPLE 7: Amplitude modulation (tremolo)
 // kanon('tremolo', pipe(
@@ -344,13 +344,13 @@ kanon('mixed-waves', pipe(
 //   )(
 //     sin(440)          // 440 Hz carrier
 //   ),
-//   gain(0.5)
+//   gain(2)
 // ));
 
 // EXAMPLE 8: Stereo with independent channels
 // kanon('stereo-pad', stereo(
-//   pipe(sin(220), gain(0.3)),    // Left: A3
-//   pipe(sin(330), gain(0.3))     // Right: E4 (perfect fifth)
+//   pipe(sin(220), gain(3)),    // Left: A3
+//   pipe(sin(330), gain(3))     // Right: E4 (perfect fifth)
 // ));
 
 // EXAMPLE 9: Binaural Beat (2Hz beat frequency for deep relaxation)

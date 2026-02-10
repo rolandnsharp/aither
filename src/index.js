@@ -1,64 +1,63 @@
 #!/usr/bin/env bun
-// index.js - Main Entry Point for Kanon Engine
+// index.js - Main Kanon Server
 // ============================================================================
-// Run with: bun --hot index.js
+// Starts the audio engine, loads a session file, and listens for REPL commands.
+// Usage:
+//   kanon              - Starts server with live-session.js
+//   kanon <other.js>   - Starts server with a specific session file
 // ============================================================================
 
-import { start, stop, status } from './engine.js';
-import { kanon, clear } from './kanon.js';
+import { start } from './engine.js';
+import { kanon, clear, list, remove } from './kanon.js';
 import { pipe, sin, saw, tri, square, lfo, gain, pan, stereo, mix, am, softClip, feedback } from './helpers.js';
 import dgram from 'dgram';
+import { resolve } from 'path';
 
+// --- Configuration ---
 const PORT = 41234;
 const HOST = '127.0.0.1';
 
-// ============================================================================
-// Initialize
-// ============================================================================
-console.log('='.repeat(60));
-console.log('KANON - Live Coding REPL Server');
-console.log('='.repeat(60));
-console.log('');
+// --- Main Execution ---
+async function main() {
+  // Determine which session file to load
+  const sessionFile = process.argv[2] || 'live-session.js';
+  const sessionPath = resolve(process.cwd(), sessionFile);
 
-// Start the engine
-start();
+  console.log('='.repeat(60));
+  console.log('KANON - Live Coding Server');
+  console.log('='.repeat(60));
+  console.log(`Session File: ${sessionFile}`);
 
-// Create a UDP socket to listen for code
-const server = dgram.createSocket('udp4');
+  // 1. Start the audio engine
+  start();
 
-server.on('listening', () => {
-  const address = server.address();
-  console.log(`[REPL] Ready and listening on ${address.address}:${address.port}`);
-  console.log('[REPL] Send code from another terminal with the `send.js` script.');
-  console.log('');
-});
-
-server.on('message', (msg, rinfo) => {
-  const code = msg.toString();
-  console.log(`[REPL] Received ${msg.length} bytes. Evaluating...`);
+  // 2. Load the initial session file
   try {
-    // Evaluate the received code in the current scope,
-    // making `kanon()` and `clear()` available to it.
-    eval(code);
-    console.log('[REPL] Evaluation successful.');
-  } catch (e) {
-    console.error('[REPL] Evaluation error:', e.message);
+    console.log(`Loading initial session from ${sessionFile}...`);
+    // Bust cache to ensure we get the latest version
+    await import(`${sessionPath}?v=${Date.now()}`);
+  } catch (err) {
+    console.error(`Error loading session file: ${err.message}`);
+    // Continue running so the REPL is available
   }
-});
+  
+  // 3. Start the REPL server
+  const server = dgram.createSocket('udp4');
+  server.on('listening', () => {
+    console.log(`REPL Ready. Listening on ${HOST}:${PORT}`);
+    console.log('Use `kanon-send` or `kanon-repl` to send commands.');
+  });
+  server.on('message', (msg) => {
+    const code = msg.toString();
+    console.log(`[REPL] Received ${msg.length} bytes. Evaluating...`);
+    try {
+      eval(code);
+      console.log('[REPL] Evaluation successful.');
+    } catch (e) {
+      console.error('[REPL] Evaluation error:', e.message);
+    }
+  });
+  server.bind(PORT, HOST);
+}
 
-server.on('error', (err) => {
-  console.error(`[REPL] Server error:\n${err.stack}`);
-  server.close();
-});
-
-server.bind(PORT, HOST);
-
-// Log status after 1 second
-setTimeout(() => {
-  // ... (status logging remains the same)
-}, 1000);
-
-// Keep process alive
-setInterval(() => {
-  // Heartbeat
-}, 5000);
+main();

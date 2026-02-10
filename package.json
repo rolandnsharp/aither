@@ -3,10 +3,11 @@
   "module": "src/index.js",
   "type": "module",
   "bin": {
-    "kanon": "./src/start.js"
+    "kanon": "./src/index.js",
+    "kanon-client": "./kanon-client.js"
   },
   "scripts": {
-    "start": "bun --hot src/index.js",
+    "start": "kanon",
     "dev": "bun --hot src/index.js"
   },
   "devDependencies": {
