@@ -5,8 +5,7 @@
 // Hot-reload compatible: Uses globalThis.KANON_STATE for phase continuity
 // ============================================================================
 
-import { kanon, clear } from './src/kanon.js';
-import { pipe, sin, saw, tri, square, lfo, gain, pan, stereo, mix, am, softClip, feedback } from './src/helpers.js';
+import { clear } from './src/aether.js';
 
 clear();
 
@@ -426,8 +425,8 @@ clear();
 // EXAMPLE 6: Mixed waveforms
 // kanon('mixed-waves', pipe(
 //   mix(
-//     pipe(sin(240), gain(0.3)),    // A3 sine
-//     // pipe(saw(330), gain(0.2)),    // E4 sawtooth
+//     pipe(sin(240), gain(2)),    // A3 sine
+//     pipe(saw(330), gain(2.2)),    // E4 sawtooth
 //     // pipe(tri(440), gain(0.2))     // A4 triangle
 //   ),
 //   softClip()          // Soft clipping prevents distortion
@@ -445,8 +444,9 @@ clear();
 
 // EXAMPLE 8: Stereo with independent channels
 // kanon('stereo-pad', stereo(
-//   pipe(sin(220), gain(3)),    // Left: A3
-//   pipe(sin(330), gain(3))     // Right: E4 (perfect fifth)
+//   pipe(sin(220), gain(3))
+//   // ,    // Left: A3
+//   // pipe(sin(330), gain(3))     // Right: E4 (perfect fifth)
 // ));
 
 // EXAMPLE 9: Binaural Beat (2Hz beat frequency for deep relaxation)
@@ -456,7 +456,7 @@ clear();
 //     pipe(sin(434), gain(0.3))     // Right: 434 Hz (2Hz beat)
 //   )
 //   // Add feedback for ambient echo:
-//   ,feedback(2, 2)              // 300ms delay, 40% feedback
+//   // ,feedback(2, 2)              // 300ms delay, 40% feedback
 // ));
 
 // ============================================================================
@@ -470,3 +470,16 @@ clear();
 // 6. Functional style (pipe/compose) is cleaner for simple signals
 // 7. Manual style gives more control for complex state management
 // ============================================================================
+
+// ============================================================================
+// TEST: New Rhythmos Namespace API
+// ============================================================================
+
+import { Rhythmos } from './src/arche/rhythmos/index.js';
+
+Rhythmos.register('test-sine',
+  Rhythmos.pipe(
+    Rhythmos.sin(333),
+    Rhythmos.gain(0.3)
+  )
+);

@@ -5,7 +5,7 @@
 
 // STRIDE: The dimensional count of our signal universe
 // STRIDE = 1 (Mono), STRIDE = 2 (Stereo), STRIDE = 4 (XYZW for 3D scope)
-export const STRIDE = 1;
+export const STRIDE = 2;
 
 // Ring buffer size in frames (~680ms at 48kHz)
 const FRAME_COUNT = 32768;

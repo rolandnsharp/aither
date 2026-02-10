@@ -8,8 +8,6 @@
 // ============================================================================
 
 import { start } from './engine.js';
-import { kanon, clear, list, remove } from './kanon.js';
-import { pipe, sin, saw, tri, square, lfo, gain, pan, stereo, mix, am, softClip, feedback } from './helpers.js';
 import dgram from 'dgram';
 import { resolve } from 'path';
 

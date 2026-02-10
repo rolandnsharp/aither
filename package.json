@@ -1,13 +1,13 @@
 {
-  "name": "kanon",
+  "name": "aether",
   "module": "src/index.js",
   "type": "module",
   "bin": {
-    "kanon": "./src/index.js",
-    "kanon-client": "./kanon-client.js"
+    "aether": "./src/index.js",
+    "aether-client": "./aether-client.js"
   },
   "scripts": {
-    "start": "kanon",
+    "start": "aether",
     "dev": "bun --hot src/index.js"
   },
   "devDependencies": {

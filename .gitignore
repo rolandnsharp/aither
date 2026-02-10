@@ -168,6 +168,10 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
+# Bun
+
+bun.lockb
+
 # IntelliJ based IDEs
 .idea
 

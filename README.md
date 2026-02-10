@@ -1,4 +1,4 @@
-# Kanon - Live Sound Surgery Engine
+# Aether - Live Sonic Aether Engine
 
 > *"All things are number."* - Pythagoras
 
@@ -6,11 +6,11 @@ A state-driven live-coding environment for sound synthesis inspired by the Pytha
 
 ## Philosophy
 
-**Kanon** (κανών - "rule" or "measure") embodies Pythagorean music theory - sound as mathematical ratios made audible. Like the ancient monochord that revealed harmony's mathematical foundations, Kanon treats your state array as a vibrating string that never stops.
+**Aether** (Gr. Αἰθήρ) embodies the classical element that fills the universe, the pure essence that conveys all phenomena. Like the theoretical medium through which waves propagate, this engine treats your state array as the fabric of a sonic universe that never stops. Its design has evolved to support a hierarchy of increasingly abstract and organic synthesis models.
 
-When you edit parameters, the signal morphs seamlessly because its state persists across code changes. The monochord's string continues vibrating; only the tension changes.
+When you edit parameters, the sonic medium morphs seamlessly because its state persists across code changes. The monochord's string continues vibrating; only the tension changes.
 
-The engine's design has evolved to support a hierarchy of increasingly abstract and organic synthesis models. **See [docs/SYNTHESIS_MODELS.md](docs/SYNTHESIS_MODELS.md) for the full design philosophy.**
+**See [docs/AETHER_PARADIGMS.md](docs/AETHER_PARADIGMS.md) for the full design philosophy.**
 
 ## Quick Start
 

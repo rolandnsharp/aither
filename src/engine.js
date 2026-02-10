@@ -4,7 +4,7 @@
 // ============================================================================
 
 import { ringBuffer } from './storage.js';
-import { updateAll } from './kanon.js';
+import { updateAll } from './aether.js';
 import { createTransport } from './transport.js';
 
 // ============================================================================
@@ -53,7 +53,7 @@ export function start() {
   // Singleton Guard: If an engine is already running, do nothing.
   // The hot-reload will have updated the registry, and the existing loop
   // will pick up the changes seamlessly.
-  if (globalThis.KANON_ENGINE_INSTANCE) {
+  if (globalThis.AETHER_ENGINE_INSTANCE) {
     console.log('[Engine] Hot-reload: Engine already running.');
     return;
   }
@@ -79,7 +79,7 @@ export function start() {
   fillBufferHandle = setImmediate(fillBuffer);
 
   // Store this instance globally
-  globalThis.KANON_ENGINE_INSTANCE = { stop };
+  globalThis.AETHER_ENGINE_INSTANCE = { stop };
 
   console.log(`[Engine] Running at ${SAMPLE_RATE}Hz, STRIDE=${ringBuffer.stride}`);
 }
@@ -103,7 +103,7 @@ export function stop() {
     transport = null;
   }
 
-  globalThis.KANON_ENGINE_INSTANCE = null;
+  globalThis.AETHER_ENGINE_INSTANCE = null;
   console.log('[Engine] Stopped');
 }
 
