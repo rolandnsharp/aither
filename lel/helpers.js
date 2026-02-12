@@ -127,6 +127,63 @@ function expand(monoLogicFn, helperName, slotsPerChannelSpecifier = 1) {
 // ============================================================================
 export const pipe = (x, ...fns) => fns.reduce((v, f) => f(v), x);
 
+/**
+ * Mix multiple signals together (sum them).
+ * Fully stride-agnostic: handles mono, stereo, or N-channel signals.
+ * Normalizes output by number of input signals to prevent clipping.
+ * @param {...Function} signals - Signal functions to mix
+ * @returns {Function} Mixed signal function
+ */
+export const mix = (...signals) => {
+  return s => {
+    if (signals.length === 0) return 0;
+    if (signals.length === 1) return signals[0](s);
+
+    // Evaluate all signals
+    const results = signals.map(sig => sig(s));
+
+    // Determine maximum stride (number of channels)
+    let maxStride = 1;
+    for (const result of results) {
+      if (Array.isArray(result)) {
+        maxStride = Math.max(maxStride, result.length);
+      }
+    }
+
+    // If all mono, return mono sum
+    if (maxStride === 1) {
+      let sum = 0;
+      for (const result of results) {
+        sum += (Array.isArray(result) ? result[0] : result) || 0;
+      }
+      return sum / signals.length;
+    }
+
+    // Multi-channel mix
+    const output = new Array(maxStride).fill(0);
+    for (const result of results) {
+      if (Array.isArray(result)) {
+        // Multi-channel signal
+        for (let i = 0; i < result.length; i++) {
+          output[i] += result[i] || 0;
+        }
+      } else {
+        // Mono signal - add to all channels
+        for (let i = 0; i < maxStride; i++) {
+          output[i] += result || 0;
+        }
+      }
+    }
+
+    // Normalize by number of signals
+    for (let i = 0; i < maxStride; i++) {
+      output[i] /= signals.length;
+    }
+
+    return output;
+  };
+};
+
 
 // ============================================================================
 // STATEFUL HELPERS (Stride-Agnostic via `expand`)
