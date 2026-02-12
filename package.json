@@ -1,14 +1,14 @@
 {
   "name": "aether",
-  "module": "src/index.js",
+  "module": "src/server.js",
   "type": "module",
   "bin": {
-    "aether": "./src/index.js",
+    "aether": "./src/server.js",
     "aether-client": "./aether-client.js"
   },
   "scripts": {
     "start": "aether",
-    "dev": "bun --hot src/index.js"
+    "dev": "bun --hot src/server.js"
   },
   "devDependencies": {
     "@types/bun": "^1.3.6"
