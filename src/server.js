@@ -21,10 +21,19 @@ const OFFSETS = globalThis.LEL_OFFSETS;
 
 // --- Global Helper State Pool (managed by helpers.js) ---
 // This pool is for ALL helper instances across ALL signals.
-const HELPER_MEMORY_SIZE = 65536; // Example size, needs to be adequate.
-globalThis.LEL_HELPER_MEMORY ??= new Float64Array(HELPER_MEMORY_SIZE);
-globalThis.LEL_HELPER_SLOT_MAP ??= new Map();
-globalThis.LEL_HELPER_NEXT_SLOT ??= 0;
+// Large size needed for delay lines (1 second at 48kHz = 48,000 samples)
+const HELPER_MEMORY_SIZE = 1048576; // 1 million slots = ~8MB (plenty for delays)
+
+// Reinitialize if size doesn't match (handles config changes between runs)
+if (!globalThis.LEL_HELPER_MEMORY || globalThis.LEL_HELPER_MEMORY.length !== HELPER_MEMORY_SIZE) {
+    globalThis.LEL_HELPER_MEMORY = new Float64Array(HELPER_MEMORY_SIZE);
+    globalThis.LEL_HELPER_SLOT_MAP = new Map();
+    globalThis.LEL_HELPER_NEXT_SLOT = 0;
+    console.log(`[Aither] Initialized helper memory pool: ${HELPER_MEMORY_SIZE} slots (~${(HELPER_MEMORY_SIZE * 8 / 1024 / 1024).toFixed(1)}MB)`);
+} else {
+    globalThis.LEL_HELPER_SLOT_MAP ??= new Map();
+    globalThis.LEL_HELPER_NEXT_SLOT ??= 0;
+}
 
 // Expose the global helper state for `claimStateBlock` in helpers.js
 Object.assign(globalThis.LEL_HELPER_STATE_ACCESSOR = {}, {
