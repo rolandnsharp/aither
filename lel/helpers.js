@@ -246,6 +246,42 @@ const delay_mono = (s, input, helperMemory, baseAddrForThisChannel, chan, maxTim
 export const delay = expand(delay_mono, 'delay', (maxTime) => 1 + Math.floor(maxTime * 48000));
 
 
+// --- Feedback Delay Helper Logic ---
+// Like delay, but feeds the output back into the buffer (creates regenerating echoes).
+// Formula: output = input + delayed_output * feedbackAmount
+const feedback_mono = (s, input, helperMemory, baseAddrForThisChannel, chan, maxTime, time, feedbackAmt) => {
+    const bufferLength = Math.floor(maxTime * s.sr);
+    const cursorSlot = baseAddrForThisChannel + 0;
+    const channelBufferStart = baseAddrForThisChannel + 1;
+
+    const timeFn = typeof time === 'function' ? time : () => time;
+    const feedbackFn = typeof feedbackAmt === 'function' ? feedbackAmt : () => feedbackAmt;
+
+    const delaySamples = Math.min(bufferLength - 1, Math.floor(timeFn(s) * s.sr));
+    const fbAmt = feedbackFn(s);
+
+    let writeCursor = Math.floor(helperMemory[cursorSlot]);
+    if (isNaN(writeCursor) || writeCursor < 0 || writeCursor >= bufferLength) writeCursor = 0;
+
+    // Calculate read position and get delayed sample
+    const readCursor = (writeCursor - delaySamples + bufferLength) % bufferLength;
+    const delayedSample = helperMemory[channelBufferStart + readCursor] || 0;
+
+    // Feedback: output = input + delayed_output * feedbackAmount
+    const output = input + delayedSample * fbAmt;
+
+    // Write OUTPUT (with feedback) back to buffer - this is the key difference from delay!
+    helperMemory[channelBufferStart + writeCursor] = output;
+
+    // Advance cursor
+    helperMemory[cursorSlot] = (writeCursor + 1) % bufferLength;
+
+    return output;
+};
+// Feedback requires same dynamic slots as delay: 1 for cursor + `bufferLength`.
+export const feedback = expand(feedback_mono, 'feedback', (maxTime) => 1 + Math.floor(maxTime * 48000));
+
+
 // ============================================================================
 // STATELESS HELPERS (Stride-Agnostic)
 // ============================================================================
