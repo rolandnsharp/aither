@@ -4,7 +4,7 @@
 
 import { register, clear } from './index.js';
 // Import the new helpers, including the essential `resetHelperCounter` and `pipe`
-import { gain, pan, tremolo, lowpass, resetHelperCounter, pipe } from './helpers.js';
+import { gain, pan, tremolo, lowpass, delay, resetHelperCounter, pipe } from './helpers.js';
 
 // Clear all signal functions on every reload.
 clear();
@@ -44,11 +44,11 @@ const statefulOsc = (s, freq) => {
 };
 
 // Refactored using `pipe` for a clean, linear signal chain.
-// The `pipe` function takes the base signal as its first argument,
-// and then a sequence of "transformer" functions.
+// // The `pipe` function takes the base signal as its first argument,
+// // and then a sequence of "transformer" functions.
 register('complex-drone',
   pipe(
-    s => statefulOsc(s, 110), // 1. Start with our base oscillator.
+    s => statefulOsc(s, 555), // 1. Start with our base oscillator.
 
     // 2. Pipe it into the first (inner) tremolo.
     //    Each of these functions receives the signal from the previous line.
@@ -64,6 +64,24 @@ register('complex-drone',
     signal => gain(signal, 0.3),
 
     // 6. Finally, pipe into the stereo panner.
-    signal => pan(signal, s => Math.sin(s.t * 0.1))
+    signal => pan(signal, s => Math.sin(s.t * 2))
   )
 );
+
+
+// // --- Signal 3: A Delayed Sine Wave ---
+
+// // Reset the counter for this new, independent signal chain.
+// resetHelperCounter();
+
+// register('delayed-sine',
+//   pipe(
+//     pureSine(440), // Input signal: a pure sine wave
+
+//     // Apply a delay. maxTime sets the buffer size.
+//     // The actual delay time can be dynamic.
+//     signal => delay(signal, 10.11, 0.125), // Max 0.5s delay, actual 0.25s
+
+//     signal => gain(signal, 0.4) // Apply some gain
+//   )
+// );
