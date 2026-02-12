@@ -485,6 +485,171 @@ Kanon.register('mod-matrix', modulationMatrix);
 
 ---
 
+## Vortex Morph (Advanced Phase Modulation)
+
+**An organic, growling cello-like tone that continuously evolves.**
+
+The Vortex Morph uses phase modulation with a slow-breathing LFO to create complex, non-linear harmonics that evolve over time. This technique produces organic, rich timbres reminiscent of bowed strings or evolving pads.
+
+### Core Concept
+
+Two oscillators in a modulator-carrier relationship, where:
+1. The **modulator** oscillates at a non-harmonic ratio to the carrier
+2. A slow **morphing LFO** controls the modulation depth
+3. The **phase modulation depth** varies continuously, creating evolving harmonics
+
+### Basic Implementation (Rhythmos Style)
+
+```javascript
+register('vortex-morph', s => {
+  // --- Parameters (change these live!) ---
+  const baseFreq = 122.0;      // Deep G2 note
+  const modRatio = 1.618;      // Golden Ratio (non-harmonic shimmer)
+  const morphSpeed = 0.2;      // How fast the "vortex" breathes (Hz)
+  const intensity = 4.0;       // Modulation depth (try 50.0 for chaos!)
+
+  // Calculate phase increments
+  const p1Inc = baseFreq / s.sr;
+  const p2Inc = (baseFreq * modRatio) / s.sr;
+  const tInc = morphSpeed / s.sr;
+
+  // Accumulate three phases
+  s.state[0] = (s.state[0] || 0) + p1Inc;     // Carrier phase
+  s.state[1] = (s.state[1] || 0) + p2Inc;     // Modulator phase
+  s.state[2] = (s.state[2] || 0) + tInc;      // Global LFO for morphing
+
+  // Wrap phases
+  s.state[0] %= 1.0;
+  s.state[1] %= 1.0;
+  s.state[2] %= 1.0;
+
+  // The Vortex: Use the second osc to warp the time-space of the first osc
+  const depthLFO = Math.sin(s.state[2] * 2 * Math.PI) * intensity;
+  const modulator = Math.sin(s.state[1] * 2 * Math.PI) * depthLFO;
+  const sample = Math.sin(s.state[0] * 2 * Math.PI + modulator);
+
+  return sample * 0.5;
+});
+```
+
+### Parameter Guide
+
+**baseFreq** (22-500 Hz)
+- Lower values: Deep, rumbling drones
+- Higher values: Bright, shimmer pads
+
+**modRatio** (1.0-3.0)
+- 1.0: Harmonic (boring)
+- 1.618 (φ): Golden ratio - organic, natural shimmer
+- 2.0-3.0: Inharmonic, bell-like tones
+
+**morphSpeed** (0.05-2.0 Hz)
+- Slow (0.05-0.2): Glacial evolution, meditation drones
+- Medium (0.5-1.0): Breathing, alive quality
+- Fast (1.5-2.0): Tremolo-like pulsing
+
+**intensity** (1.0-50.0)
+- 1-5: Subtle shimmer, musical
+- 10-20: Rich evolving harmonics
+- 30-50: Chaotic, aggressive, noisy
+
+### Variations
+
+**Three-Voice Vortex**
+
+```javascript
+// Mix three vortexes at different ratios
+const vortex = (baseFreq, modRatio, morphSpeed, intensity) => s => {
+  const p1Inc = baseFreq / s.sr;
+  const p2Inc = (baseFreq * modRatio) / s.sr;
+  const tInc = morphSpeed / s.sr;
+
+  s.state[0] = (s.state[0] || 0) + p1Inc;
+  s.state[1] = (s.state[1] || 0) + p2Inc;
+  s.state[2] = (s.state[2] || 0) + tInc;
+
+  s.state[0] %= 1.0;
+  s.state[1] %= 1.0;
+  s.state[2] %= 1.0;
+
+  const depthLFO = Math.sin(s.state[2] * 2 * Math.PI) * intensity;
+  const modulator = Math.sin(s.state[1] * 2 * Math.PI) * depthLFO;
+  return Math.sin(s.state[0] * 2 * Math.PI + modulator);
+};
+
+register('triple-vortex',
+  mix(
+    vortex(122, 1.618, 0.2, 4.0),   // Low
+    vortex(359, 1.414, 0.1, 22.0),  // Mid (√2 ratio)
+    vortex(22, 2.1, 0.1, 44)        // Sub-bass
+  )
+);
+```
+
+**Filtered Vortex**
+
+```javascript
+register('smooth-vortex',
+  pipe(
+    vortexMorph,
+    lowpass(1200),
+    tremolo(0.5, 0.3),
+    gain(0.4)
+  )
+);
+```
+
+**Dual Vortex (Panned Mix)**
+
+```javascript
+// Two vortexes panned left/right and mixed
+register('dual-vortex',
+  mix(
+    pipe(vortex(122, 1.618, 0.2, 4.0), pan(-0.7)),
+    pipe(vortex(122, 1.618, 0.21, 4.0), pan(0.7))  // Slightly detuned
+  )
+);
+```
+
+### Musical Applications
+
+**Cello-Like Drone**
+```javascript
+// baseFreq: 65-130 Hz (C2-C3)
+// modRatio: 1.5-1.7 (cello-like)
+// morphSpeed: 0.1-0.3 (slow bow)
+// intensity: 3-8 (organic)
+```
+
+**Evolving Pad**
+```javascript
+// baseFreq: 220-440 Hz (A3-A4)
+// modRatio: 1.618 (golden ratio)
+// morphSpeed: 0.2-0.5 (breathing)
+// intensity: 10-20 (rich harmonics)
+```
+
+**Aggressive Bass**
+```javascript
+// baseFreq: 40-80 Hz
+// modRatio: 2.0-3.0 (harsh)
+// morphSpeed: 1.0-2.0 (fast)
+// intensity: 30-50 (chaotic)
+```
+
+### Why It Works
+
+The Vortex Morph creates its characteristic sound through:
+
+1. **Non-harmonic ratios** (like φ = 1.618) prevent periodicity, creating evolving spectra
+2. **Time-varying modulation depth** makes the timbre constantly shift
+3. **Phase modulation** (rather than frequency modulation) creates cleaner, more musical harmonics
+4. **Low fundamental + high mod ratio** spreads energy across a wide frequency range
+
+The result is a sound that feels **alive** - it breathes, evolves, and never repeats exactly.
+
+---
+
 ## Further Reading
 
 - [Additive Synthesis](additive-synthesis.md) - Building blocks
