@@ -40,4 +40,93 @@ register('panning-osc',
   )
 );
 
+
+// --- Example 3: Drum Beat Using Low-Frequency Square Wave ---
+// A low-freq square wave creates rhythmic pulses
+
+// Helper: Square wave function
+const square = (freq, phaseSlot = 0) => s => {
+  s.state[phaseSlot] = (s.state[phaseSlot] + freq / s.sr) % 1.0;
+  return s.state[phaseSlot] < 0.5 ? 1 : -1;
+};
+
+// Simple pulse beat (2 Hz = 120 BPM)
+register('pulse-beat',
+  pipe(
+    square(2, 0),  // 2 Hz square wave
+    signal => gain(signal, 0.2)
+  )
+);
+
+// Kick drum: Square wave gates a low sine with envelope
+register('kick',
+  s => {
+    // Square wave trigger (2 Hz = 120 BPM)
+    const TRIGGER_PHASE = 0;
+    const ENV_PHASE = 1;
+    const KICK_FREQ_PHASE = 2;
+
+    s.state[TRIGGER_PHASE] = (s.state[TRIGGER_PHASE] || 0) + 2 / s.sr;
+    s.state[TRIGGER_PHASE] %= 1.0;
+
+    const trigger = s.state[TRIGGER_PHASE] < 0.5 ? 1 : 0;
+
+    // Envelope (decay on each trigger)
+    const prevTrigger = s.state[3] || 0;
+    if (trigger > prevTrigger) {
+      // Trigger detected - reset envelope
+      s.state[ENV_PHASE] = 1.0;
+    }
+    s.state[3] = trigger;
+
+    // Exponential decay
+    const decayRate = 8; // Fast decay
+    s.state[ENV_PHASE] = (s.state[ENV_PHASE] || 0) * Math.exp(-decayRate * s.dt);
+    const env = s.state[ENV_PHASE];
+
+    // Kick sound: Low sine with pitch envelope
+    const baseFreq = 50; // Low frequency for kick
+    const pitchEnv = 1 + env * 3; // Pitch drops as envelope decays
+    const kickFreq = baseFreq * pitchEnv;
+
+    s.state[KICK_FREQ_PHASE] = (s.state[KICK_FREQ_PHASE] || 0) + kickFreq / s.sr;
+    s.state[KICK_FREQ_PHASE] %= 1.0;
+
+    const kick = Math.sin(s.state[KICK_FREQ_PHASE] * 2 * Math.PI);
+
+    return kick * env * 1.5;
+  }
+);
+
+// Hi-hat: Square wave gates noise at double speed (4 Hz = 240 BPM)
+register('hihat',
+  s => {
+    const TRIGGER_PHASE = 0;
+    const ENV_PHASE = 1;
+
+    s.state[TRIGGER_PHASE] = (s.state[TRIGGER_PHASE] || 0) + 4 / s.sr; // 4 Hz
+    s.state[TRIGGER_PHASE] %= 1.0;
+
+    const trigger = s.state[TRIGGER_PHASE] < 0.5 ? 1 : 0;
+
+    // Detect trigger
+    const prevTrigger = s.state[2] || 0;
+    if (trigger > prevTrigger) {
+      s.state[ENV_PHASE] = 1.0;
+    }
+    s.state[2] = trigger;
+
+    // Fast decay for hi-hat
+    const decayRate = 20;
+    s.state[ENV_PHASE] = (s.state[ENV_PHASE] || 0) * Math.exp(-decayRate * s.dt);
+    const env = s.state[ENV_PHASE];
+
+    // Hi-hat sound: filtered noise
+    const noise = Math.random() * 2 - 1;
+
+    return noise * env * 0.15;
+  }
+);
+
 console.log("Initial signals loaded from live-session.js. Use REPL to explore!");
+console.log("Try: stop('filtered-delayed-sine') or play('kick') or play('hihat')");
