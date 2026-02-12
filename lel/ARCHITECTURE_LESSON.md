@@ -8,7 +8,7 @@ Our first attempt at building the audio engine used `setInterval` to generate au
 
 ## The Solution: A "Pull" Architecture with Streams
 
-The correct solution is a **"pull" architecture"**, where the audio hardware *tells us* when it needs more data. We implemented this with a custom Node.js `Readable` stream that pipes into the `speaker` instance, solving the primary glitching issue.
+The correct solution is a **"pull" architecture"**, where the audio hardware *tells us* when it needs more data. We implemented this with a custom Node.js `Readable` stream that pipes directly into the `speaker` instance. Our `generateAudioChunk` function is passed directly to this stream, which calls it whenever the audio hardware needs another block of samples. This solves the primary glitching issue and is the foundation of our stable engine.
 
 ---
 
@@ -30,27 +30,22 @@ The solution is to **create zero garbage in the real-time audio loop**.
 
 ---
 
-# Architecture Lesson 3: The Decoupled Producer/Consumer Model
+# Architecture Lesson 3: Instant, Pop-Free Hot-Reloading
 
-Our final architectural breakthrough was implementing a true producer/consumer model, which solves multiple problems and elevates the engine to a professional standard.
+Our final challenge was ensuring that hot-reloads were truly instantaneous, without any audio dropouts, clicks, or overlapping sounds.
 
-## The Problem: A "Tangled" Pipeline & Race Conditions
+## The Problem: Re-initializing the Audio Stream
 
-Initially, our `generateAudioChunk` function was responsible for both creating audio and feeding it to the speaker stream. This created race conditions on startup, where the speaker would ask for audio before any was generated, causing "Starvation" errors. Attempts to fix this with a complex, multi-stage "pre-fill" loop only introduced new bugs and hangs.
+Our initial hot-reloading mechanism (re-running the script via `bun --hot`) was tearing down the old audio stream and creating a new one on every save. This process is fast, but not instantaneous, causing a brief audio artifact.
 
-## The Solution: Full Decoupling and Concurrent Startup
+## The Solution: A Global Singleton Guard
 
-The most robust and performant architecture is to **completely decouple** the audio generation (producer) from the audio output (consumer) and **start them concurrently**.
+The correct pattern is to **never stop the audio stream once it has started**. The stream is a singleton.
 
-1.  **The Ring Buffer:** This is the central meeting point. It's a thread-safe, shared piece of memory that holds the audio data.
+1.  **Global State:** We moved all persistent state (`STATE`, `REGISTRY`, `OFFSETS`) to the `globalThis` object, allowing it to survive script re-runs.
+2.  **Singleton Guard:** We added a guard at the very start of our engine. It checks if `globalThis.LEL_ENGINE_INSTANCE` exists.
+    -   **On Cold Start:** The instance does *not* exist. The engine starts the audio stream, creates the instance on `globalThis`, and loads the session file.
+    -   **On Hot-Reload:** The instance *does* exist. The `start` function **exits immediately**. The audio stream is never touched. The script continues, re-importing `live-session.js`.
+3.  **Session-Managed Cleanup:** The `live-session.js` file is now responsible for calling `clear()` (non-destructive) at its top. This surgically removes the old signal functions from the `globalThis.LEL_REGISTRY` before registering the new ones.
 
-2.  **The Producer (`index.js`):**
-    *   Runs in a high-speed `setImmediate` loop.
-    *   Its **only job** is to generate audio as fast as possible and write it into the ring buffer.
-    *   It will pause if the ring buffer is full, automatically balancing the system.
-
-3.  **The Consumer (`transport.js`):**
-    *   This is the `Readable` stream that feeds the speaker.
-    *   Its **only job** is to read data *from* the ring buffer whenever the audio hardware is ready for it.
-
-By starting both loops at the same time, we create a resilient system. The consumer might ask for data and find none for the first few milliseconds (which may log a harmless "Starvation" message), but the producer, running in a tight loop, will immediately catch up and fill the buffer. This eliminates all complex startup logic and creates a system that reliably balances itself.
+The result is that the audio stream runs continuously, and on a hot-reload, the already-running loop seamlessly swaps out the old signal function for the new one on its very next sample, achieving truly instantaneous, pop-free updates.

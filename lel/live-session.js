@@ -17,5 +17,5 @@ clear();
 register('sine-440', s => {
   // `s.state[0]` is our persistent phase value.
   // s.state[0] = (s.state[0] + 222 / s.sr) % 1.0;
-  return Math.sin(555 * Math.PI * s.t) * 0.5;
+  return Math.sin(666 * Math.PI * s.t) * 0.5;
 });
