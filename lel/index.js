@@ -138,6 +138,9 @@ const api = {
     }
 };
 
+// --- Make API global for live-session.js and REPL ---
+Object.assign(globalThis, api);
+
 // --- Audio Engine ---
 const outputBuffer = new Float32Array(config.BUFFER_SIZE * config.STRIDE);
 
@@ -208,5 +211,7 @@ function start() {
     });
     server.bind(REPL_PORT, REPL_HOST);
 }
+
+
 
 start();
