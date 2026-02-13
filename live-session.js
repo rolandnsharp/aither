@@ -9,31 +9,74 @@
 
 clear(true); // Full reset for a clean start
 
-// ═══════════════════════════════════════════════════════════════════════════
-// 🌐 CROSS-PARADIGM INFLUENCE SYSTEM
-// ═══════════════════════════════════════════════════════════════════════════
-// Shared state for paradigms to influence each other
-globalThis.INFLUENCE = globalThis.INFLUENCE || {
-  // Written by earth-pulse, read by water-spring
-  earthEnergy: 0,
-  earthPulsePhase: 0,
-
-  // Written by water systems, read by earth and aither
-  waterTension: 0,
-  waterFlow: 0,
-
-  // Written by spatial systems, read by earth and water
-  spatialDensity: 0,
-  spatialMovement: 0,
-};
-
 console.log('');
 console.log('═══════════════════════════════════════════════════');
 console.log('  EPIC FIVE ELEMENT SOUNDSCAPE');
 console.log('  "One interface. Five paradigms. Infinite expression."');
-console.log('  🌐 Cross-paradigm influence system active');
+console.log('  🎼 Pure functional cross-paradigm composition');
 console.log('═══════════════════════════════════════════════════');
 console.log('');
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🎼 CONTROL SIGNALS - Pure Functions of s
+// ═══════════════════════════════════════════════════════════════════════════
+// These are reusable control signals that any paradigm can call.
+// They're just f(s) → value, like any other signal!
+
+// Earth pulse phase (normalized 0-1)
+const earthPulsePhase = s => {
+  const PULSE_PHASE_SLOT = 100; // Use high slot numbers to avoid conflicts
+  const pulseMod = 1 + waterTension(s) * 0.5; // Water tension speeds up pulse
+  s.state[PULSE_PHASE_SLOT] = (s.state[PULSE_PHASE_SLOT] || 0) + (2 * pulseMod) / s.sr;
+  s.state[PULSE_PHASE_SLOT] %= 1.0;
+  return s.state[PULSE_PHASE_SLOT];
+};
+
+// Earth energy (pulse envelope 0.3-1.0)
+const earthEnergy = s => {
+  const phase = earthPulsePhase(s);
+  return phase < 0.5 ? 1 : 0.3;
+};
+
+// Water tension (from spring displacement)
+const waterTension = s => {
+  const WATER_SPRING_POS_SLOT = 110;
+  return Math.abs(s.state[WATER_SPRING_POS_SLOT] || 0);
+};
+
+// Water flow (from ripple velocities)
+const waterFlow = s => {
+  const RIPPLE_VEL_BASE = 120;
+  const numSprings = 3;
+  let totalVelocity = 0;
+  for (let i = 0; i < numSprings; i++) {
+    totalVelocity += Math.abs(s.state[RIPPLE_VEL_BASE + i] || 0);
+  }
+  return totalVelocity / numSprings;
+};
+
+// Spatial density (from field source amplitudes)
+const spatialDensity = s => {
+  const { x, y, z } = s.position;
+  const sources = [
+    [0, 0, 0],    // Center
+    [3, 0, 0],    // Right
+    [-3, 0, 0]    // Left
+  ];
+  let densitySum = 0;
+  for (const [sx, sy, sz] of sources) {
+    const dx = x - sx, dy = y - sy, dz = z - sz;
+    const distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+    densitySum += 1 / (distance + 1);
+  }
+  return densitySum / sources.length;
+};
+
+// Spatial movement (from orbit speeds)
+const spatialMovement = s => {
+  const orbitSpeed = 0.5 + earthEnergy(s) * 0.3 + waterFlow(s) * 0.2;
+  return orbitSpeed;
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 🔥 KANON (Fire) - Pure Time Functions
@@ -105,18 +148,10 @@ play('earth-pulse',
       output += Math.sin(s.state[i] * 2 * Math.PI);
     }
 
-    // Rhythmic pulse (2 Hz = 120 BPM)
-    // Modulated by water tension - more tension = faster pulse
-    const pulseMod = 1 + globalThis.INFLUENCE.waterTension * 0.5;
-    s.state[10] = (s.state[10] || 0) + (2 * pulseMod) / s.sr;
-    s.state[10] %= 1.0;
-    const pulse = s.state[10] < 0.5 ? 1 : 0.3; // Square-ish envelope
+    // Get the rhythmic pulse by calling the control signal
+    const pulse = earthEnergy(s);
 
-    // Write influence values for other systems
-    globalThis.INFLUENCE.earthEnergy = pulse;
-    globalThis.INFLUENCE.earthPulsePhase = s.state[10];
-
-    return output / freqs.length * pulse * 0.2;
+    return output / freqs.length * pulse * 0.92;
   }
 );
 
@@ -125,12 +160,12 @@ play('earth-lead',
     s => {
       // Evolving lead synth with detuned oscillators
       // Spatial density influences the pitch drift amount
-      const driftAmount = 20 + globalThis.INFLUENCE.spatialDensity * 30;
+      const driftAmount = 20 + spatialDensity(s) * 30;
       const baseFreq = 440 + Math.sin(s.t * 0.2) * driftAmount;
 
       // Three detuned oscillators (fat sound)
       // Water flow influences detune spread
-      const detuneSpread = 0.005 + globalThis.INFLUENCE.waterFlow * 0.01;
+      const detuneSpread = 0.005 + waterFlow(s) * 0.01;
       let output = 0;
       const detune = [0, detuneSpread, -detuneSpread];
       for (let i = 0; i < 3; i++) {
@@ -148,7 +183,7 @@ play('earth-lead',
       return output / 3 * env * 0.18;
     },
     // Filter cutoff modulated by spatial movement
-    signal => lowpass(signal, s => 1200 + globalThis.INFLUENCE.spatialMovement * 1800),
+    signal => lowpass(signal, s => 1200 + spatialMovement(s) * 1800),
     signal => gain(signal, 0.8)
   )
 );
@@ -235,10 +270,10 @@ play('earth-lead',
 play('water-spring',
   pipe(
     s => {
-      const POSITION = 0;
-      const VELOCITY = 1;
-      const TRIGGER_PHASE = 2;
-      const PREV_TRIGGER = 3;
+      const POSITION = 110; // Use slot 110 so waterTension() can read it
+      const VELOCITY = 111;
+      const TRIGGER_PHASE = 112;
+      const PREV_TRIGGER = 113;
 
       // Periodic excitation (0.5 Hz = one impulse every 2 seconds)
       s.state[TRIGGER_PHASE] = (s.state[TRIGGER_PHASE] || 0) + 0.5 / s.sr;
@@ -248,7 +283,7 @@ play('water-spring',
       const prevTrigger = s.state[PREV_TRIGGER] || 0;
 
       // Apply impulse to velocity (stronger when earth pulse is active)
-      const earthBoost = 1 + globalThis.INFLUENCE.earthEnergy * 3;
+      const earthBoost = 1 + earthEnergy(s) * 3;
       if (trigger > prevTrigger) {
         s.state[VELOCITY] = (s.state[VELOCITY] || 0) + (8.0 * earthBoost);
       }
@@ -257,7 +292,7 @@ play('water-spring',
       // Spring-mass-damper system
       // F = -k*x - c*v (Hooke's law + damping)
       // Spring constant modulated by spatial density (denser space = stiffer spring)
-      const springConstant = 150 + globalThis.INFLUENCE.spatialDensity * 100;
+      const springConstant = 150 + spatialDensity(s) * 100;
       const damping = 0.5;         // Damping coefficient
 
       const position = s.state[POSITION] || 0;
@@ -272,9 +307,6 @@ play('water-spring',
       s.state[POSITION] = newPosition;
       s.state[VELOCITY] = newVelocity;
 
-      // Write influence: tension is the absolute displacement
-      globalThis.INFLUENCE.waterTension = Math.abs(newPosition);
-
       // Convert position to audio (with saturation for warmth)
       return Math.tanh(newPosition * 3) * 0.25;
     },
@@ -288,12 +320,12 @@ play('water-ripple',
     // Multiple coupled spring systems (ripple effect)
     const numSprings = 3;
     const POSITION_BASE = 0;
-    const VELOCITY_BASE = 10;
-    const TRIGGER_PHASE = 20;
-    const PREV_TRIGGER = 21;
+    const VELOCITY_BASE = 120; // Use slot 120+ so waterFlow() can read them
+    const TRIGGER_PHASE = 130;
+    const PREV_TRIGGER = 131;
 
     // Trigger rate modulated by earth pulse phase
-    const triggerRate = 1 + Math.sin(globalThis.INFLUENCE.earthPulsePhase * Math.PI * 2) * 0.3;
+    const triggerRate = 1 + Math.sin(earthPulsePhase(s) * Math.PI * 2) * 0.3;
     s.state[TRIGGER_PHASE] = (s.state[TRIGGER_PHASE] || 0) + triggerRate / s.sr;
     s.state[TRIGGER_PHASE] %= 1.0;
 
@@ -302,13 +334,12 @@ play('water-ripple',
 
     if (trigger > prevTrigger) {
       // Excite first spring (influenced by spatial movement)
-      const excitation = 5.0 + globalThis.INFLUENCE.spatialMovement * 3.0;
+      const excitation = 5.0 + spatialMovement(s) * 3.0;
       s.state[VELOCITY_BASE] = (s.state[VELOCITY_BASE] || 0) + excitation;
     }
     s.state[PREV_TRIGGER] = trigger;
 
     let output = 0;
-    let totalVelocity = 0;
 
     // Update each spring (with coupling to neighbors)
     for (let i = 0; i < numSprings; i++) {
@@ -340,11 +371,7 @@ play('water-ripple',
       s.state[velSlot] = newVelocity;
 
       output += newPosition;
-      totalVelocity += Math.abs(newVelocity);
     }
-
-    // Write influence: flow is the average velocity magnitude
-    globalThis.INFLUENCE.waterFlow = totalVelocity / numSprings;
 
     return Math.tanh(output * 2) * 0.2;
   }
@@ -368,7 +395,6 @@ play('aither-field',
       ];
 
       let output = 0;
-      let densitySum = 0;
 
       for (const source of sources) {
         const [sx, sy, sz] = source.pos;
@@ -381,17 +407,13 @@ play('aither-field',
 
         // Amplitude falloff with distance (inverse square law)
         const amplitude = 1 / (distance + 1);
-        densitySum += amplitude;
 
         // Time-varying frequency influenced by water tension
-        const freqMod = 1 + Math.sin(s.t * 0.3 + sx) * (0.02 + globalThis.INFLUENCE.waterTension * 0.03);
+        const freqMod = 1 + Math.sin(s.t * 0.3 + sx) * (0.02 + waterTension(s) * 0.03);
         const freq = source.freq * freqMod;
 
         output += Math.sin(2 * Math.PI * freq * s.t) * amplitude;
       }
-
-      // Write influence: spatial density is the sum of all source amplitudes
-      globalThis.INFLUENCE.spatialDensity = densitySum / sources.length;
 
       return output * 0.2;
     },
@@ -407,15 +429,15 @@ play('aither-orbits',
     // Rotating sound sources (orbiting the listener)
     const numOrbiters = 4;
     let output = 0;
-    let totalMovement = 0;
 
     for (let i = 0; i < numOrbiters; i++) {
       // Orbit speed influenced by earth energy and water flow
-      const orbitSpeed = 0.5 + globalThis.INFLUENCE.earthEnergy * 0.3 + globalThis.INFLUENCE.waterFlow * 0.2;
+      // This calls the control signals to get their current values
+      const orbitSpeed = spatialMovement(s);
       const angle = (s.t * orbitSpeed + i * Math.PI * 2 / numOrbiters) % (Math.PI * 2);
 
       // Orbit radius pulsing with water tension
-      const radius = 2 + globalThis.INFLUENCE.waterTension * 1.5;
+      const radius = 2 + waterTension(s) * 1.5;
 
       // Orbiter position
       const ox = Math.cos(angle) * radius;
@@ -432,14 +454,8 @@ play('aither-orbits',
       const amplitude = 1 / (distance + 1);
       const freq = 220 * (i + 1); // Different frequency per orbiter
 
-      // Track movement for influence
-      totalMovement += orbitSpeed;
-
       output += Math.sin(2 * Math.PI * freq * s.t) * amplitude;
     }
-
-    // Write influence: spatial movement is the average orbit speed
-    globalThis.INFLUENCE.spatialMovement = totalMovement / numOrbiters;
 
     return output * 0.15;
   }
@@ -456,17 +472,17 @@ play('elemental-unity',
       // 🔥 Kanon component - frequency modulated by all influences
       s => {
         const freqMod = 1 +
-          globalThis.INFLUENCE.earthEnergy * 0.05 +
-          globalThis.INFLUENCE.waterTension * 0.1 +
-          globalThis.INFLUENCE.spatialDensity * 0.08;
+          earthEnergy(s) * 0.05 +
+          waterTension(s) * 0.1 +
+          spatialDensity(s) * 0.08;
         const freq = 165 * freqMod;
-        const am = 0.5 + 0.5 * Math.sin(2 * Math.PI * (0.15 + globalThis.INFLUENCE.waterFlow * 0.1) * s.t);
+        const am = 0.5 + 0.5 * Math.sin(2 * Math.PI * (0.15 + waterFlow(s) * 0.1) * s.t);
         return Math.sin(2 * Math.PI * freq * s.t) * am * 0.2;
       },
 
       // 🌍 Rhythmos component - phase rate modulated by spatial movement
       s => {
-        const phaseMod = 1 + globalThis.INFLUENCE.spatialMovement * 0.3;
+        const phaseMod = 1 + spatialMovement(s) * 0.3;
         s.state[0] = (s.state[0] || 0) + (277 * phaseMod) / s.sr;
         s.state[0] %= 1.0;
         return Math.sin(s.state[0] * 2 * Math.PI) * 0.2;
@@ -474,7 +490,7 @@ play('elemental-unity',
 
       // 💨 Atomos component - trigger rate responds to earth pulse
       s => {
-        const triggerRate = 4 + globalThis.INFLUENCE.earthPulsePhase * 8;
+        const triggerRate = 4 + earthPulsePhase(s) * 8;
         s.state[1] = (s.state[1] || 0) + triggerRate / s.sr;
         s.state[1] %= 1.0;
         const trigger = s.state[1] < 0.01 ? 1 : 0;
@@ -487,15 +503,15 @@ play('elemental-unity',
 
       // 💧 Physis component - spring constant varies with spatial density
       s => {
-        const k = 200 + globalThis.INFLUENCE.spatialDensity * 150;
+        const k = 200 + spatialDensity(s) * 150;
         const c = 0.2;
         const pos = s.state[4] || 0;
         const vel = s.state[5] || 0;
-        const triggerMod = 0.5 + globalThis.INFLUENCE.earthEnergy * 0.5;
+        const triggerMod = 0.5 + earthEnergy(s) * 0.5;
         s.state[6] = (s.state[6] || 0) + triggerMod / s.sr;
         s.state[6] %= 1.0;
         if (s.state[6] < 0.5 && (s.state[7] || 1) > 0.5) {
-          s.state[5] = 3.0 + globalThis.INFLUENCE.waterFlow * 2.0;
+          s.state[5] = 3.0 + waterFlow(s) * 2.0;
         }
         s.state[7] = s.state[6];
         const force = -k * pos - c * vel;
@@ -511,15 +527,15 @@ play('elemental-unity',
         const { x, y, z } = s.position;
         const d = Math.sqrt(x*x + y*y + z*z);
         const amp = 1 / (d + 1);
-        const freq = 220 * (1 + globalThis.INFLUENCE.waterTension * 0.5);
+        const freq = 220 * (1 + waterTension(s) * 0.5);
         return Math.sin(2 * Math.PI * freq * s.t) * amp * 0.2;
       }
     ),
     // Filter cutoff responds to combined influences
     signal => lowpass(signal, s =>
       1000 +
-      globalThis.INFLUENCE.spatialMovement * 1500 +
-      globalThis.INFLUENCE.waterFlow * 800
+      spatialMovement(s) * 1500 +
+      waterFlow(s) * 800
     ),
     signal => feedback(signal, 3.0, 1.2, 0.25),
     signal => gain(signal, 0.6)
@@ -533,30 +549,34 @@ play('elemental-unity',
 setPosition({ x: 0, y: 0, z: 0 });
 
 console.log('');
+console.log('🎼 CONTROL SIGNALS (Pure Functions):');
+console.log('   • earthEnergy(s)      → Pulse envelope from earth rhythm');
+console.log('   • earthPulsePhase(s)  → Normalized phase 0-1');
+console.log('   • waterTension(s)     → Spring displacement magnitude');
+console.log('   • waterFlow(s)        → Ripple velocity magnitude');
+console.log('   • spatialDensity(s)   → Field source amplitude sum');
+console.log('   • spatialMovement(s)  → Orbital speed');
+console.log('');
 console.log('🌍 RHYTHMOS (Earth) - Active Signals:');
-console.log('   • earth-pulse  → writes earthEnergy, earthPulsePhase');
-console.log('   • earth-lead   → reads spatialDensity, waterFlow');
+console.log('   • earth-pulse  → Generates earthEnergy(s) and earthPulsePhase(s)');
+console.log('   • earth-lead   → Calls spatialDensity(s), waterFlow(s)');
 console.log('');
 console.log('💧 PHYSIS (Water) - Active Signals:');
-console.log('   • water-spring → reads earthEnergy, spatialDensity | writes waterTension');
-console.log('   • water-ripple → reads earthPulsePhase, spatialMovement | writes waterFlow');
+console.log('   • water-spring → Calls earthEnergy(s), spatialDensity(s)');
+console.log('   • water-ripple → Calls earthPulsePhase(s), spatialMovement(s)');
 console.log('');
 console.log('✨ CHORA (Aither) - Active Signals:');
-console.log('   • aither-field  → reads waterTension | writes spatialDensity');
-console.log('   • aither-orbits → reads earthEnergy, waterFlow, waterTension | writes spatialMovement');
+console.log('   • aither-field  → Calls waterTension(s)');
+console.log('   • aither-orbits → Calls spatialMovement(s), waterTension(s)');
 console.log('');
 console.log('🌟 UNITY - Cross-Influenced Composite:');
-console.log('   • elemental-unity → responds to ALL influence signals');
+console.log('   • elemental-unity → Calls ALL control signals');
 console.log('');
-console.log('🌐 INFLUENCE FLOW:');
-console.log('   Earth pulse → excites Water springs');
-console.log('   Water tension → speeds Earth pulse, modulates Aither frequencies');
-console.log('   Water flow → controls Earth detune spread');
-console.log('   Spatial density → stiffens Water springs, drifts Earth pitch');
-console.log('   Spatial movement → excites Water ripples, filters Earth lead');
-console.log('   Earth energy → speeds Aither orbits');
+console.log('💡 KEY INSIGHT:');
+console.log('   Control signals are just f(s) → value, like audio signals!');
+console.log('   No global state, no buses - just pure function composition.');
+console.log('   Each paradigm can call any control signal to read its value.');
 console.log('');
-console.log('Try: setPosition({ x: 2, y: 1, z: 0 }) to change spatial influence');
-console.log('     globalThis.INFLUENCE to inspect current values');
+console.log('Try: setPosition({ x: 2, y: 1, z: 0 }) to change spatial field');
 console.log('');
 console.log('═══════════════════════════════════════════════════');
