@@ -43,10 +43,13 @@
  *   - Dynamic buffer sizes for helpers like `delay` are handled elegantly.
  */
 
-// This object holds the persistent state for the helpers themselves.
-globalThis.LEL_HELPER_MEMORY ??= new Float64Array(65536); // Dedicated pool for helpers
+// Global helper memory pool. Size is set by server.js (1MB), this is a fallback.
+globalThis.LEL_HELPER_MEMORY ??= new Float64Array(1048576);
 globalThis.LEL_HELPER_SLOT_MAP ??= new Map();
 globalThis.LEL_HELPER_NEXT_SLOT ??= 0;
+// Free list for recycling memory blocks from unregistered signals.
+// Each entry is { offset, size }. Populated by garbageCollectHelpers() in server.js.
+globalThis.LEL_HELPER_FREE_LIST ??= [];
 
 // This is the per-signal-chain counter. It is NOT persistent.
 let helperCounter = 0;
@@ -69,17 +72,40 @@ export function resetHelperCounterInternal() {
  */
 function claimStateBlock(s, helperName, helperIndex, totalBlockSize) {
     const helperKey = `${s.name}_${helperName}_${helperIndex}`;
-    if (!globalThis.LEL_HELPER_SLOT_MAP.has(helperKey)) {
-        const startAddr = globalThis.LEL_HELPER_NEXT_SLOT;
-        globalThis.LEL_HELPER_SLOT_MAP.set(helperKey, startAddr);
-        globalThis.LEL_HELPER_NEXT_SLOT += totalBlockSize;
-        // Safety check: Ensure we don't exceed the total allocated state for this signal.
-        if (globalThis.LEL_HELPER_NEXT_SLOT > globalThis.LEL_HELPER_MEMORY.length) {
-            console.error(`[FATAL] Out of HELPER state memory for signal "${s.name}". Helper "${helperName}" failed to allocate ${totalBlockSize} slots. Total available: ${globalThis.LEL_HELPER_MEMORY.length}. Needed: ${globalThis.LEL_HELPER_NEXT_SLOT}.`);
-        }
-        return startAddr;
+
+    // Already allocated? Return the existing offset.
+    if (globalThis.LEL_HELPER_SLOT_MAP.has(helperKey)) {
+        return globalThis.LEL_HELPER_SLOT_MAP.get(helperKey).offset;
     }
-    return globalThis.LEL_HELPER_SLOT_MAP.get(helperKey);
+
+    // Try to recycle a block from the free list (populated by garbageCollectHelpers
+    // in server.js when a signal is unregistered). The list is sorted by size,
+    // so this is a "first-fit" search that minimizes fragmentation.
+    const freeList = globalThis.LEL_HELPER_FREE_LIST;
+    for (let i = 0; i < freeList.length; i++) {
+        const block = freeList[i];
+        if (block.size >= totalBlockSize) {
+            const startAddr = block.offset;
+            freeList.splice(i, 1);
+            globalThis.LEL_HELPER_SLOT_MAP.set(helperKey, { offset: startAddr, size: totalBlockSize });
+            // Return any leftover space to the free list.
+            const leftover = block.size - totalBlockSize;
+            if (leftover > 0) {
+                freeList.push({ offset: startAddr + totalBlockSize, size: leftover });
+                freeList.sort((a, b) => a.size - b.size);
+            }
+            return startAddr;
+        }
+    }
+
+    // Bump allocator fallback: allocate from the end of the pool.
+    const startAddr = globalThis.LEL_HELPER_NEXT_SLOT;
+    globalThis.LEL_HELPER_SLOT_MAP.set(helperKey, { offset: startAddr, size: totalBlockSize });
+    globalThis.LEL_HELPER_NEXT_SLOT += totalBlockSize;
+    if (globalThis.LEL_HELPER_NEXT_SLOT > globalThis.LEL_HELPER_MEMORY.length) {
+        console.error(`[FATAL] Out of HELPER state memory for signal "${s.name}". Helper "${helperName}" failed to allocate ${totalBlockSize} slots. Total available: ${globalThis.LEL_HELPER_MEMORY.length}. Needed: ${globalThis.LEL_HELPER_NEXT_SLOT}.`);
+    }
+    return startAddr;
 }
 
 /**
