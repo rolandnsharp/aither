@@ -85,6 +85,43 @@ use repeatedly. `gate()` is a square wave mapped to 0/1. `decay()` is an
 exponential ramp down. `sin()` is a phase-continuous oscillator. Each one is
 still a signal, composable with everything else.
 
+## FM Synthesis Through Composition
+
+FM synthesis is a perfect example of composability. There's no dedicated FM
+function — you just use one oscillator to modulate another's frequency:
+
+```javascript
+// The modulator: a sine wave at 280 Hz
+const mod = sin(280);
+
+// The carrier: its frequency is 440 ± 200 Hz, driven by the modulator
+const carrier = sin(s => 440 + mod(s) * 200);
+
+play('bell', carrier)
+```
+
+Because oscillators accept functions as frequency arguments, FM is free.
+And because any signal can modulate any other, you're not limited to
+sine-on-sine:
+
+```javascript
+// Sawtooth modulator for harsher timbre
+const mod = saw(280);
+const carrier = sin(s => 440 + mod(s) * 200);
+
+// Modulate the modulator (FM feedback / cascaded operators)
+const lfo = tri(0.5);
+const mod = sin(s => 280 + lfo(s) * 50);
+const carrier = sin(s => 440 + mod(s) * 200);
+
+// Evolving depth — modulation intensity changes over time
+const mod = sin(280);
+const carrier = sin(s => 440 + mod(s) * Math.sin(s.t * 0.3) * 500);
+```
+
+This is the DX7 in three lines — no special API, just signals modulating
+signals.
+
 ## The Key Insight
 
 In Aither, there is no distinction between:

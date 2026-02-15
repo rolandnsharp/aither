@@ -6,7 +6,7 @@
 // Platform adapters (speaker.js, future jack.js, future webaudio.js)
 // call generateAudioChunk() to pull audio from the engine.
 
-import * as dsp from './dsp.js';
+import * as dsp from './dsp/index.js';
 
 // --- Config ---
 export const config = {
