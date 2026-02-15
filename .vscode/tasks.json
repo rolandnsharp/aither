@@ -1,0 +1,15 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "aither-eval-clipboard",
+            "type": "shell",
+            "command": "xclip -selection clipboard -o | bun run ${workspaceFolder}/src/send-repl.js",
+            "presentation": {
+                "reveal": "silent",
+                "close": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}

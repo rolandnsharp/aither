@@ -3,7 +3,7 @@
 import { performance, monitorEventLoopDelay } from 'perf_hooks';
 import { startStream, config } from './speaker.js';
 import * as dsp from './dsp.js';
-import dgram from 'dgram';
+import { startReplServer } from './repl-server.js';
 import path from 'path';
 
 // --- High-Performance Configuration ---
@@ -155,13 +155,19 @@ function generateAudioChunk() {
         for (const [name, { fn, stateObject }] of REGISTRY.entries()) {
             s.state = stateObject;
             s.name = name;
-            const result = fn(s);
-            if (Array.isArray(result)) {
-                left += result[0] || 0;
-                right += result[1] || 0;
-            } else {
-                left += result || 0;
-                right += result || 0;
+            try {
+                const result = fn(s);
+                if (Array.isArray(result)) {
+                    left += result[0] || 0;
+                    right += result[1] || 0;
+                } else {
+                    left += result || 0;
+                    right += result || 0;
+                }
+            } catch (e) {
+                // Log once per signal, then remove it so it doesn't spam.
+                console.error(`[Aither] Signal "${name}" threw: ${e.message}. Removing.`);
+                REGISTRY.delete(name);
             }
         }
         outputBuffer[i * config.STRIDE] = Math.tanh(left);
@@ -192,20 +198,7 @@ async function start() {
     startStream(generateAudioChunk);
     globalThis.AITHER_ENGINE_INSTANCE = { status: 'running', api };
 
-    const REPL_PORT = 41234;
-    const REPL_HOST = '127.0.0.1';
-    const server = dgram.createSocket('udp4');
-    server.on('listening', () => console.log(`[Aither] REPL Ready. Listening on ${REPL_HOST}:${REPL_PORT}`));
-    server.on('message', (msg) => {
-        const code = msg.toString();
-        try {
-            const scopedEval = new Function(...Object.keys(api), code);
-            scopedEval(...Object.values(api));
-        } catch (e) {
-            console.error('[REPL] Evaluation error:', e.message);
-        }
-    });
-    server.bind(REPL_PORT, REPL_HOST);
+    startReplServer(api);
 
     if (process.env.AITHER_PERF_MONITOR === 'true') {
         const histogram = monitorEventLoopDelay();

@@ -118,28 +118,33 @@ function claimStateBlock(s, helperName, helperIndex, totalBlockSize) {
  * @returns {Function} A new, stride-agnostic helper function.
  */
 function expand(monoLogicFn, helperName, slotsPerChannelSpecifier = 1) {
-    return (signal, ...args) => { // This is the function the user calls (e.g., lowpass(osc, 800))
-        const helperIndex = helperCounter++; // Claim index in the composition chain
+    return (signal, ...args) => {
+        const helperIndex = helperCounter++;
 
-        // Calculate slotsPerChannel dynamically if `slotsPerChannelSpecifier` is a function.
-        const currentSlotsPerChannel = typeof slotsPerChannelSpecifier === 'function' 
-            ? slotsPerChannelSpecifier(...args) 
+        const currentSlotsPerChannel = typeof slotsPerChannelSpecifier === 'function'
+            ? slotsPerChannelSpecifier(...args)
             : slotsPerChannelSpecifier;
 
-        return s => { // This is the real-time audio function
-            const input = signal(s); // Get the incoming signal (mono or array)
+        // Pre-allocate a reusable output array. Sized on first multichannel
+        // call and reused every subsequent sample — zero allocations in hot path.
+        let outputBuf = null;
+
+        return s => {
+            const input = signal(s);
             const numChannels = Array.isArray(input) ? input.length : 1;
-            
+
             const totalBlockSize = numChannels * currentSlotsPerChannel;
             const startAddrOfInstance = claimStateBlock(s, helperName, helperIndex, totalBlockSize);
-            
+
             if (numChannels > 1) {
-                const output = [];
+                if (!outputBuf || outputBuf.length !== numChannels) {
+                    outputBuf = new Array(numChannels);
+                }
                 for (let i = 0; i < numChannels; i++) {
                     const baseAddrForThisChannel = startAddrOfInstance + (i * currentSlotsPerChannel);
-                    output[i] = monoLogicFn(s, input[i], globalThis.LEL_HELPER_MEMORY, baseAddrForThisChannel, i, ...args);
+                    outputBuf[i] = monoLogicFn(s, input[i], globalThis.LEL_HELPER_MEMORY, baseAddrForThisChannel, i, ...args);
                 }
-                return output;
+                return outputBuf;
             } else {
                 return monoLogicFn(s, input, globalThis.LEL_HELPER_MEMORY, startAddrOfInstance, 0, ...args);
             }
@@ -161,52 +166,57 @@ export const pipe = (x, ...fns) => fns.reduce((v, f) => f(v), x);
  * @returns {Function} Mixed signal function
  */
 export const mix = (...signals) => {
+  // Pre-allocate reusable buffers — zero allocations in hot path.
+  const results = new Array(signals.length);
+  let outputBuf = null;
+
   return s => {
     if (signals.length === 0) return 0;
     if (signals.length === 1) return signals[0](s);
 
-    // Evaluate all signals
-    const results = signals.map(sig => sig(s));
-
-    // Determine maximum stride (number of channels)
+    // Evaluate all signals into pre-allocated array.
     let maxStride = 1;
-    for (const result of results) {
-      if (Array.isArray(result)) {
-        maxStride = Math.max(maxStride, result.length);
+    for (let j = 0; j < signals.length; j++) {
+      const r = signals[j](s);
+      results[j] = r;
+      if (Array.isArray(r) && r.length > maxStride) {
+        maxStride = r.length;
       }
     }
 
-    // If all mono, return mono sum
     if (maxStride === 1) {
       let sum = 0;
-      for (const result of results) {
-        sum += (Array.isArray(result) ? result[0] : result) || 0;
+      for (let j = 0; j < results.length; j++) {
+        const r = results[j];
+        sum += (Array.isArray(r) ? r[0] : r) || 0;
       }
       return sum / signals.length;
     }
 
-    // Multi-channel mix
-    const output = new Array(maxStride).fill(0);
-    for (const result of results) {
-      if (Array.isArray(result)) {
-        // Multi-channel signal
-        for (let i = 0; i < result.length; i++) {
-          output[i] += result[i] || 0;
+    // Reuse output buffer, resize only if channel count changes.
+    if (!outputBuf || outputBuf.length !== maxStride) {
+      outputBuf = new Array(maxStride);
+    }
+    for (let i = 0; i < maxStride; i++) outputBuf[i] = 0;
+
+    for (let j = 0; j < results.length; j++) {
+      const r = results[j];
+      if (Array.isArray(r)) {
+        for (let i = 0; i < r.length; i++) {
+          outputBuf[i] += r[i] || 0;
         }
       } else {
-        // Mono signal - add to all channels
         for (let i = 0; i < maxStride; i++) {
-          output[i] += result || 0;
+          outputBuf[i] += r || 0;
         }
       }
     }
 
-    // Normalize by number of signals
     for (let i = 0; i < maxStride; i++) {
-      output[i] /= signals.length;
+      outputBuf[i] /= signals.length;
     }
 
-    return output;
+    return outputBuf;
   };
 };
 
@@ -234,7 +244,7 @@ export const tremolo = expand(tremolo_mono, 'tremolo', 1); // Tremolo needs 1 sl
 const lowpass_mono = (s, input, helperMemory, baseAddrForThisChannel, chan, cutoff) => {
     const z1Slot = baseAddrForThisChannel + 0; // The single z1 slot for this channel
     const cutoffFn = typeof cutoff === 'function' ? cutoff : () => cutoff;
-    const alpha = cutoffFn(s) / s.sr;
+    const alpha = Math.min(1, Math.max(0, cutoffFn(s) / s.sr));
     const z1 = helperMemory[z1Slot] || 0; // Initialize z1 to 0 if first run
     const output = z1 + alpha * (input - z1);
     helperMemory[z1Slot] = output; // Store the new z1
