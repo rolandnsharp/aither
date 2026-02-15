@@ -1,42 +1,32 @@
-// lel/transport.js - The "Consumer"
-// This module's job is to read audio from a generation function
-// on demand and send it to the audio hardware.
+// Aither Speaker Adapter — pipes engine audio to system speakers.
+// This is a platform-specific adapter. Future adapters (jack.js, webaudio.js)
+// will replace this with their own output mechanism.
 
 import Speaker from 'speaker';
 import { Readable } from 'stream';
+import { config } from './engine.js';
 
-export const config = {
-  SAMPLE_RATE: 48000,
-  CHANNELS: 2, // Stereo
-  BIT_DEPTH: 32,
-  BUFFER_SIZE: 1024, // The size of the audio chunks we process
-  STRIDE: 2,
-};
-
-// A custom Readable stream that generates audio on demand
 class AudioStream extends Readable {
-  constructor(processFn, options) {
-    super(options);
-    this.processFn = processFn;
-  }
+    constructor(processFn, options) {
+        super(options);
+        this.processFn = processFn;
+    }
 
-  _read(size) {
-    // The speaker library will call _read when it needs more data.
-    const buffer = this.processFn();
-    // Push a Node.js Buffer, not a Float32Array
-    this.push(Buffer.from(buffer.buffer));
-  }
+    _read(size) {
+        const buffer = this.processFn();
+        this.push(Buffer.from(buffer.buffer));
+    }
 }
 
 export function startStream(processFn) {
-  const speaker = new Speaker({
-    channels: config.CHANNELS,
-    bitDepth: config.BIT_DEPTH,
-    sampleRate: config.SAMPLE_RATE,
-    float: true,
-  });
-  console.log('Audio transport initialized and stream started.');
+    const speaker = new Speaker({
+        channels: config.CHANNELS,
+        bitDepth: config.BIT_DEPTH,
+        sampleRate: config.SAMPLE_RATE,
+        float: true,
+    });
 
-  const audioStream = new AudioStream(processFn);
-  audioStream.pipe(speaker);
+    const audioStream = new AudioStream(processFn);
+    audioStream.pipe(speaker);
+    console.log('Audio transport initialized and stream started.');
 }
