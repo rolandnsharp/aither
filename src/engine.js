@@ -83,8 +83,13 @@ export const api = {
     ...dsp,
 
     register: (name, fn) => {
+        // Hot-swap: if signal already exists, just replace the function.
+        // Helper memory stays alive so phase accumulators are continuous.
         if (REGISTRY.has(name)) {
-            api.unregister(name);
+            dsp.resetHelperCounterInternal();
+            REGISTRY.get(name).fn = fn;
+            console.log(`[Aither] Hot-swapped function for "${name}".`);
+            return;
         }
         dsp.resetHelperCounterInternal();
         let offset;
@@ -119,7 +124,7 @@ export const api = {
     },
 
     play: (name, fn, fadeTime) => {
-        if (!fadeTime) return api.register(name, fn);
+        if (!fadeTime || REGISTRY.has(name)) return api.register(name, fn);
         let fadeElapsed = 0;
         const wrappedFn = (s) => {
             fadeElapsed += s.dt;
@@ -139,7 +144,10 @@ export const api = {
         entry.fn = (s) => {
             fadeRemaining -= s.dt;
             if (fadeRemaining <= 0) { api.unregister(name); return 0; }
-            return originalFn(s) * (fadeRemaining / fadeTime);
+            const result = originalFn(s);
+            const g = fadeRemaining / fadeTime;
+            if (Array.isArray(result)) { for (let i = 0; i < result.length; i++) result[i] *= g; return result; }
+            return result * g;
         };
     },
 
