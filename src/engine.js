@@ -205,9 +205,13 @@ export const api = {
 };
 
 // --- Audio Loop ---
-const outputBuffer = new Float32Array(config.BUFFER_SIZE * config.STRIDE);
+let outputBuffer = null;
 
 export function generateAudioChunk() {
+    const size = config.BUFFER_SIZE * config.STRIDE;
+    if (!outputBuffer || outputBuffer.length !== size) {
+        outputBuffer = new Float32Array(size);
+    }
     for (let i = 0; i < config.BUFFER_SIZE; i++) {
         let left = 0, right = 0;
 
